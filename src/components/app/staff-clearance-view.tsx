@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, Loader2, DollarSign } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
 import { useDoc } from '@/firebase';
@@ -26,7 +26,8 @@ type UserProfile = {
   email: string;
 };
 
-const FinanceClearanceView = () => {
+
+const StaffClearanceView = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -46,7 +47,7 @@ const FinanceClearanceView = () => {
     toast({
         title: "Status Updated",
         description: `${item.name} has been marked as ${status}.`
-    });
+    })
   };
 
   if (isLoadingItems) {
@@ -58,7 +59,7 @@ const FinanceClearanceView = () => {
     );
   }
 
-    if (itemsError) {
+  if (itemsError) {
     return (
         <div className="p-4 md:p-8">
             <Card className="border-destructive bg-destructive/10">
@@ -77,17 +78,13 @@ const FinanceClearanceView = () => {
     );
   }
 
+
   return (
     <div className="p-4 md:p-8">
       <Card className="animate-fade-in-up">
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <DollarSign className="h-8 w-8 text-primary" />
-            <div>
-              <CardTitle className="font-headline text-3xl">Finance Dashboard</CardTitle>
-              <CardDescription>Review outstanding student debts for clearance items.</CardDescription>
-            </div>
-          </div>
+          <CardTitle className="font-headline text-3xl">Staff Clearance Dashboard</CardTitle>
+          <CardDescription>Review and manage all student clearance submissions.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -97,6 +94,7 @@ const FinanceClearanceView = () => {
                 <TableHead>Student Email</TableHead>
                 <TableHead>Item Name</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Notes</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -107,7 +105,7 @@ const FinanceClearanceView = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No clearance items submitted yet.
                   </TableCell>
                 </TableRow>
@@ -119,7 +117,6 @@ const FinanceClearanceView = () => {
     </div>
   );
 };
-
 
 // A helper component to fetch user profile for each row
 const ClearanceItemRow = ({ item, onUpdateStatus }: { item: ClearanceItem; onUpdateStatus: (item: ClearanceItem, status: 'Cleared' | 'Rejected') => void }) => {
@@ -135,7 +132,7 @@ const ClearanceItemRow = ({ item, onUpdateStatus }: { item: ClearanceItem; onUpd
     if (isLoadingProfile) {
         return (
             <TableRow>
-                <TableCell colSpan={5} className="text-center">
+                <TableCell colSpan={6} className="text-center">
                     <Loader2 className="mx-auto h-4 w-4 animate-spin text-primary" />
                 </TableCell>
             </TableRow>
@@ -158,6 +155,7 @@ const ClearanceItemRow = ({ item, onUpdateStatus }: { item: ClearanceItem; onUpd
                 {item.status}
               </Badge>
             </TableCell>
+            <TableCell className='italic text-muted-foreground'>{item.notes || "No notes"}</TableCell>
             <TableCell className="text-right">
                 <Button
                     variant="ghost"
@@ -173,7 +171,7 @@ const ClearanceItemRow = ({ item, onUpdateStatus }: { item: ClearanceItem; onUpd
                     size="icon"
                     className="text-destructive hover:text-destructive/80"
                     onClick={() => onUpdateStatus(item, 'Rejected')}
-                    disabled={item.status === 'Rejected'}
+                     disabled={item.status === 'Rejected'}
                 >
                     <XCircle className="h-5 w-5" />
                 </Button>
@@ -182,4 +180,4 @@ const ClearanceItemRow = ({ item, onUpdateStatus }: { item: ClearanceItem; onUpd
     )
 }
 
-export default FinanceClearanceView;
+export default StaffClearanceView;

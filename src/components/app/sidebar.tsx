@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, ListChecks, User as UserIcon, Shield, Briefcase, Building, LogOut } from 'lucide-react';
+import { Home, ListChecks, User as UserIcon, Shield, LogOut } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -18,32 +18,18 @@ const studentMenuItems = [
   { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
 ];
 
-const adminMenuItems = [
+const staffMenuItems = [
     { name: 'Dashboard', icon: Home, href: '/dashboard' },
-    { name: 'Admin Console', icon: Building, href: '/dashboard/admin' },
-    { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
-];
-
-const financeMenuItems = [
-    { name: 'Dashboard', icon: Home, href: '/dashboard' },
-    { name: 'Finance Console', icon: Briefcase, href: '/dashboard/finance' },
-    { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
-];
-
-const securityMenuItems = [
-    { name: 'Dashboard', icon: Home, href: '/dashboard' },
-    { name: 'Security Console', icon: Shield, href: '/dashboard/security' },
+    { name: 'Staff Dashboard', icon: Shield, href: '/dashboard/staff' },
     { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
 ];
 
 const getMenuItems = (role: string) => {
     switch (role) {
         case 'Admin':
-            return adminMenuItems;
         case 'Finance':
-            return financeMenuItems;
         case 'Security':
-            return securityMenuItems;
+            return staffMenuItems;
         default:
             return studentMenuItems;
     }
@@ -69,6 +55,7 @@ const Sidebar = ({ role }: SidebarProps) => {
   const menuItems = getMenuItems(role);
 
   const handleLogout = async () => {
+    if (!auth) return;
     try {
         await signOut(auth);
         toast({ title: 'Logged Out', description: 'You have been successfully signed out.' });
