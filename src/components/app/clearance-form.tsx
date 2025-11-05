@@ -41,7 +41,7 @@ const ClearanceForm = () => {
     return collection(firestore, `users/${user.uid}/clearanceItems`);
   }, [firestore, user]);
 
-  const { data: clearanceItems = [], isLoading: isLoadingItems } = useCollection<ClearanceItem>(clearanceItemsQuery);
+  const { data: clearanceItems, isLoading: isLoadingItems } = useCollection<ClearanceItem>(clearanceItemsQuery);
 
   const handleGenerateForm = () => {
     if (!userProfile) {
@@ -131,7 +131,7 @@ const ClearanceForm = () => {
   };
 
   const handleSubmit = () => {
-    if (clearanceItems.length === 0) {
+    if (!clearanceItems || clearanceItems.length === 0) {
       toast({ title: 'Form is empty. Add items first.', variant: 'destructive' });
       return;
     }
@@ -182,7 +182,7 @@ const ClearanceForm = () => {
                 <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-primary/50" />
                 <h3 className="font-semibold text-foreground">Loading Your Items...</h3>
              </div>
-          ) : clearanceItems.length === 0 ? (
+          ) : !clearanceItems || clearanceItems.length === 0 ? (
             <div className="text-center rounded-xl border-2 border-dashed border-primary/20 bg-accent/30 p-10 md:p-16">
               <ListChecks className="mx-auto mb-4 h-12 w-12 text-primary/50" />
               <h3 className="font-semibold text-foreground">No Clearance Items Found</h3>
