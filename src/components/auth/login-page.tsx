@@ -3,38 +3,54 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { LogIn, User, Shield, Briefcase } from 'lucide-react';
+import { LogIn, User, Shield, Briefcase, AtSign, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-
-const roles = [
-  { name: 'Student', icon: User },
-  { name: 'Staffulty', icon: Briefcase },
-  { name: 'Security', icon: Shield },
-  { name: 'Admin', icon: LogIn },
-];
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
+import { Label } from '../ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const LoginPage = () => {
   const router = useRouter();
   const { toast } = useToast();
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('');
 
   const bgImage = PlaceHolderImages.find(img => img.id === 'ala-campus-bg');
   const logoHorizontal = PlaceHolderImages.find(img => img.id === 'ala-logo-horizontal');
 
-  const handleRoleSelect = (role: string) => {
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
     if (isLoggingIn) return;
+
+    if (!email || !password || !role) {
+        toast({
+            title: 'Missing Information',
+            description: 'Please fill out all fields.',
+            variant: 'destructive',
+        });
+        return;
+    }
+
     setIsLoggingIn(true);
-    setSelectedRole(role);
     toast({
       title: 'Logging In...',
       description: `You will be redirected as ${role}.`,
     });
 
     setTimeout(() => {
+      // In a real app, you'd perform authentication here.
       router.push(`/dashboard?role=${role}`);
     }, 1500);
   };
@@ -72,36 +88,60 @@ const LoginPage = () => {
            <CardHeader className="items-center text-center">
             <CardTitle className="font-headline text-4xl drop-shadow-md">Welcome to ExitPass</CardTitle>
             <CardDescription className="text-white/80">
-              Please select your role to continue.
+              Please sign in to continue.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {roles.map((role) => {
-                  const Icon = role.icon;
-                  const isSelected = selectedRole === role.name;
-                  return (
-                    <button
-                      key={role.name}
-                      onClick={() => handleRoleSelect(role.name)}
-                      className={cn(
-                        "group p-6 rounded-xl transition-all duration-300 ease-in-out",
-                        "flex flex-col items-center justify-center space-y-2",
-                        "bg-white/10 border-2 border-transparent shadow-lg",
-                        "hover:scale-[1.03] hover:shadow-primary/40 hover:shadow-2xl hover:bg-white/20",
-                        isSelected && "border-primary/80 shadow-lg shadow-primary/50 bg-white/25",
-                        isLoggingIn && !isSelected && "opacity-50 cursor-not-allowed"
-                      )}
-                      disabled={isLoggingIn}
-                    >
-                      <Icon className={cn("w-8 h-8 text-white/90 transition-colors duration-300 group-hover:text-primary", isSelected && 'text-primary')} />
-                      <span className="text-lg font-semibold text-white/90 transition-colors duration-300 group-hover:text-primary">
-                        {role.name}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+          <CardContent>
+            <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                        <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50" />
+                        <Input 
+                            id="email" 
+                            type="email" 
+                            placeholder="you@example.com" 
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="bg-white/10 border-white/20 pl-10 text-white placeholder:text-white/50"
+                            disabled={isLoggingIn}
+                        />
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/50" />
+                        <Input 
+                            id="password" 
+                            type="password" 
+                            placeholder="••••••••" 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="bg-white/10 border-white/20 pl-10 text-white placeholder:text-white/50"
+                            disabled={isLoggingIn}
+                        />
+                    </div>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select onValueChange={setRole} value={role} disabled={isLoggingIn}>
+                        <SelectTrigger id="role" className="bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Select your role" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-black/80 text-white border-white/20">
+                            <SelectItem value="Student">Student</SelectItem>
+                            <SelectItem value="Staffulty">Staffulty</SelectItem>
+                            <SelectItem value="Security">Security</SelectItem>
+                            <SelectItem value="Admin">Admin</SelectItem>
+                        </SelectContent>
+                    </Select>
+                 </div>
+              <Button type="submit" className="w-full bg-primary/80 hover:bg-primary text-white font-bold" disabled={isLoggingIn}>
+                {isLoggingIn ? 'Logging in...' : 'Log In'}
+                <LogIn className="ml-2 h-5 w-5" />
+              </Button>
+            </form>
           </CardContent>
         </Card>
         <p className="absolute bottom-4 text-center text-white/80 text-xs">
