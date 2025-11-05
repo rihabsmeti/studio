@@ -8,8 +8,11 @@ const Header = () => {
   const pathname = usePathname();
 
   const title = useMemo(() => {
-    if (pathname.includes('/clearance')) return 'Clearance';
+    if (pathname.includes('/clearance')) return 'My Clearance';
     if (pathname.includes('/profile')) return 'My Profile';
+    if (pathname.includes('/admin')) return 'Admin Console';
+    if (pathname.includes('/finance')) return 'Finance Console';
+    if (pathname.includes('/security')) return 'Security Console';
     return 'Dashboard';
   }, [pathname]);
 

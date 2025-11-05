@@ -3,17 +3,49 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Home, ListChecks, User as UserIcon } from 'lucide-react';
+import { Home, ListChecks, User as UserIcon, Shield, Briefcase, Building } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useUser } from '@/firebase';
 
-const menuItems = [
+const studentMenuItems = [
   { name: 'Dashboard', icon: Home, href: '/dashboard' },
-  { name: 'Clearance', icon: ListChecks, href: '/dashboard/clearance' },
-  { name: 'Profile', icon: UserIcon, href: '/dashboard/profile' },
+  { name: 'My Clearance', icon: ListChecks, href: '/dashboard/clearance' },
+  { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
 ];
+
+const adminMenuItems = [
+    { name: 'Dashboard', icon: Home, href: '/dashboard' },
+    { name: 'Admin Console', icon: Building, href: '/dashboard/admin' },
+    { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
+];
+
+const financeMenuItems = [
+    { name: 'Dashboard', icon: Home, href: '/dashboard' },
+    { name: 'Finance Console', icon: Briefcase, href: '/dashboard/finance' },
+    { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
+];
+
+const securityMenuItems = [
+    { name: 'Dashboard', icon: Home, href: '/dashboard' },
+    { name: 'Security Console', icon: Shield, href: '/dashboard/security' },
+    { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
+];
+
+const getMenuItems = (role: string) => {
+    switch (role) {
+        case 'Admin':
+            return adminMenuItems;
+        case 'Finance':
+            return financeMenuItems;
+        case 'Security':
+            return securityMenuItems;
+        default:
+            return studentMenuItems;
+    }
+}
+
 
 type SidebarProps = {
   role: string;
@@ -27,6 +59,8 @@ const Sidebar = ({ role }: SidebarProps) => {
 
   const userEmail = user?.email || "loading...";
   const userInitial = user?.email?.charAt(0).toUpperCase() || 'U';
+
+  const menuItems = getMenuItems(role);
 
 
   return (
