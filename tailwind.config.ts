@@ -108,7 +108,7 @@ export default {
         'accordion-up': 'accordion-up 0.2s ease-out',
         'ken-burns': 'ken-burns 40s infinite alternate ease-in-out',
         'fade-in-slide-up': 'fade-in-slide-up 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
-        'fade-slide-down': 'fade-slide-down 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+        'fade-slide-down': 'fade-slide-down 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.5s forwards',
         'fade-in-up': 'fade-in-up 0.5s ease-out forwards',
       },
     },

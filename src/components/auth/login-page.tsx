@@ -54,19 +54,22 @@ const LoginPage = () => {
       )}
       <div className="absolute inset-0 z-[-5] bg-black/50" />
 
-      <div className="relative z-10 flex h-full w-full items-center justify-center p-4">
+      <div className="relative z-10 flex h-full w-full flex-col items-center justify-center p-4">
+        {logoHorizontal && (
+          <div className="absolute top-[60px] animate-fade-slide-down">
+            <Image
+              src={logoHorizontal.imageUrl}
+              alt={logoHorizontal.description}
+              width={280}
+              height={56}
+              className="w-full max-w-[280px] md:max-w-[400px]"
+              data-ai-hint={logoHorizontal.imageHint}
+            />
+          </div>
+        )}
+
         <Card className="w-full max-w-md animate-fade-in-slide-up rounded-2xl bg-black/30 text-white backdrop-blur-lg border-white/20 shadow-2xl">
            <CardHeader className="items-center text-center">
-            {logoHorizontal && (
-              <Image
-                src={logoHorizontal.imageUrl}
-                alt={logoHorizontal.description}
-                width={280}
-                height={56}
-                className="mb-4"
-                data-ai-hint={logoHorizontal.imageHint}
-              />
-            )}
             <CardTitle className="font-headline text-4xl drop-shadow-md">Welcome to ExitPass</CardTitle>
             <CardDescription className="text-white/80">
               Please select your role to continue.
@@ -82,28 +85,28 @@ const LoginPage = () => {
                       key={role.name}
                       onClick={() => handleRoleSelect(role.name)}
                       className={cn(
-                        "p-6 rounded-xl transition-all duration-300 ease-in-out",
+                        "group p-6 rounded-xl transition-all duration-300 ease-in-out",
                         "flex flex-col items-center justify-center space-y-2",
                         "bg-white/10 border-2 border-transparent shadow-lg",
-                        "hover:scale-[1.03] hover:shadow-primary/20 hover:shadow-xl hover:bg-white/20",
+                        "hover:scale-[1.03] hover:shadow-primary/40 hover:shadow-2xl hover:bg-white/20",
                         isSelected && "border-primary/80 shadow-lg shadow-primary/50 bg-white/25",
                         isLoggingIn && !isSelected && "opacity-50 cursor-not-allowed"
                       )}
                       disabled={isLoggingIn}
                     >
-                      <Icon className={cn("w-8 h-8 transition-colors duration-300", isSelected ? 'text-primary' : 'text-white/90')} />
-                      <span className="text-lg font-semibold">
+                      <Icon className={cn("w-8 h-8 text-white/90 transition-colors duration-300 group-hover:text-primary", isSelected && 'text-primary')} />
+                      <span className="text-lg font-semibold text-white/90 transition-colors duration-300 group-hover:text-primary">
                         {role.name}
                       </span>
                     </button>
                   );
                 })}
               </div>
-              <p className="text-center text-white/60 text-xs pt-4">
-                &copy; {new Date().getFullYear()} African Leadership Academy. All rights reserved.
-              </p>
           </CardContent>
         </Card>
+        <p className="absolute bottom-4 text-center text-white/80 text-xs">
+          &copy; {new Date().getFullYear()} African Leadership Academy. All rights reserved.
+        </p>
       </div>
     </div>
   );
