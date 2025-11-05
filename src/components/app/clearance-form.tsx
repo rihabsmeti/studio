@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect } from 'react';
 import { CheckSquare, Download, ListChecks, Send, Trash2, Bot } from 'lucide-react';
 import { generateClearanceForm, GenerateClearanceFormInput } from '@/ai/flows/generate-clearance-form';
 import { Button } from '@/components/ui/button';
@@ -8,59 +8,84 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc } from 'firebase/firestore';
 
 type ClearanceItem = {
-  id: number;
+  id: string; // Firestore document ID
   name: string;
   status: 'Pending Submission' | 'Cleared' | 'Rejected';
   notes: string;
-};
-
-// Mock user data for AI generation
-const mockStudentData: GenerateClearanceFormInput = {
-    studentName: 'Ahmed Farouk',
-    studentId: 'zTDGEi7gfeYtWR8k06f5QQetjICWKZ2',
-    hallOfResidence: 'Nelson Mandela Hall',
-};
-
-const parseMarkdownTable = (markdown: string): Omit<ClearanceItem, 'id' | 'status' | 'notes'>[] => {
-    if (!markdown) return [];
-    const lines = markdown.trim().split('\n');
-    const items: Omit<ClearanceItem, 'id' | 'status' | 'notes'>[] = [];
-
-    // Start from line 2 to skip header and separator
-    for (let i = 2; i < lines.length; i++) {
-        const columns = lines[i].split('|').map(c => c.trim());
-        const name = columns[1]; // Assumes first column is the item
-        if (name) {
-            items.push({ name });
-        }
-    }
-    return items;
+  userProfileId: string;
 };
 
 const ClearanceForm = () => {
   const [itemName, setItemName] = useState('');
-  const [clearanceItems, setClearanceItems] = useState<ClearanceItem[]>([]);
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+
+  // Fetch user profile to get details for AI generation
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+  const { data: userProfile } = useDoc(userProfileRef);
+
+  // Fetch clearance items for the current user
+  const clearanceItemsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, `users/${user.uid}/clearanceItems`);
+  }, [firestore, user]);
+
+  const { data: clearanceItems = [], isLoading: isLoadingItems } = useCollection<ClearanceItem>(clearanceItemsQuery);
+
   const handleGenerateForm = () => {
+    if (!userProfile) {
+        toast({ title: "Profile not loaded", description: "Please wait for your profile to load before generating a form.", variant: "destructive"});
+        return;
+    }
+
+    const studentData: GenerateClearanceFormInput = {
+        studentName: userProfile.fullName,
+        studentId: userProfile.studentId,
+        hallOfResidence: userProfile.hallOfResidence,
+    };
+
     startTransition(async () => {
         try {
             toast({ title: "🤖 AI is generating your form...", description: "Please wait a moment." });
-            const result = await generateClearanceForm(mockStudentData);
+            const result = await generateClearanceForm(studentData);
+            
+            const parseMarkdownTable = (markdown: string): Omit<ClearanceItem, 'id' | 'status' | 'notes' | 'userProfileId'>[] => {
+                if (!markdown) return [];
+                const lines = markdown.trim().split('\n');
+                const items: Omit<ClearanceItem, 'id' | 'status' | 'notes' | 'userProfileId'>[] = [];
+                for (let i = 2; i < lines.length; i++) {
+                    const columns = lines[i].split('|').map(c => c.trim());
+                    const name = columns[1];
+                    if (name) items.push({ name });
+                }
+                return items;
+            };
+
             const parsedItems = parseMarkdownTable(result.clearanceForm);
             
-            const newItems: ClearanceItem[] = parsedItems.map((item, index) => ({
-                ...item,
-                id: Date.now() + index,
-                status: 'Pending Submission',
-                notes: '',
-            }));
+            if (clearanceItemsQuery) {
+                for (const item of parsedItems) {
+                    const newItem: Omit<ClearanceItem, 'id'> = {
+                        ...item,
+                        status: 'Pending Submission',
+                        notes: '',
+                        userProfileId: user!.uid,
+                    };
+                    addDocumentNonBlocking(clearanceItemsQuery, newItem);
+                }
+            }
 
-            setClearanceItems(prevItems => [...prevItems, ...newItems]);
             toast({ title: "✅ Success", description: "AI has populated your clearance form.", variant: "default" });
 
         } catch (error) {
@@ -75,26 +100,34 @@ const ClearanceForm = () => {
       toast({ title: 'Error', description: 'Please enter an item name.', variant: 'destructive' });
       return;
     }
-    const newItem: ClearanceItem = {
-      id: Date.now(),
+    if (!clearanceItemsQuery || !user) {
+      toast({ title: 'Error', description: 'Cannot add item. User or database not ready.', variant: 'destructive' });
+      return;
+    }
+
+    const newItem: Omit<ClearanceItem, 'id'> = {
       name: itemName.trim(),
       status: 'Pending Submission',
       notes: '',
+      userProfileId: user.uid,
     };
-    setClearanceItems([...clearanceItems, newItem]);
+    addDocumentNonBlocking(clearanceItemsQuery, newItem);
     setItemName('');
     toast({ title: 'Item added successfully!' });
   };
 
-  const handleRemoveItem = (id: number) => {
-    setClearanceItems(clearanceItems.filter(item => item.id !== id));
+  const handleRemoveItem = (id: string) => {
+    if (!firestore || !user) return;
+    const itemRef = doc(firestore, `users/${user.uid}/clearanceItems`, id);
+    deleteDocumentNonBlocking(itemRef);
     toast({ title: 'Item removed.' });
   };
 
-  const handleUpdateNotes = (id: number, notes: string) => {
-    setClearanceItems(clearanceItems.map(item =>
-      item.id === id ? { ...item, notes } : item
-    ));
+  const handleUpdateNotes = (id: string, notes: string) => {
+    if (!firestore || !user) return;
+    const itemRef = doc(firestore, `users/${user.uid}/clearanceItems`, id);
+    // This is a "last-write-wins" approach. For more complex scenarios, you might debounce this.
+    updateDocumentNonBlocking(itemRef, { notes });
   };
 
   const handleSubmit = () => {
@@ -120,9 +153,10 @@ const ClearanceForm = () => {
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
               placeholder="e.g., Advanced Physics Textbook"
+              disabled={isUserLoading || isLoadingItems}
             />
           </div>
-          <Button onClick={handleAddItem} className="w-full md:w-auto">
+          <Button onClick={handleAddItem} className="w-full md:w-auto" disabled={isUserLoading || isLoadingItems}>
             <CheckSquare className="mr-2 h-4 w-4" />
             Add Item
           </Button>
@@ -136,14 +170,19 @@ const ClearanceForm = () => {
               <CardTitle className="font-headline text-xl">My Clearance Form</CardTitle>
               <CardDescription>Update the status of your items below. Add notes for the staff to review.</CardDescription>
             </div>
-            <Button onClick={handleGenerateForm} disabled={isPending}>
+            <Button onClick={handleGenerateForm} disabled={isPending || !userProfile}>
               <Bot className="mr-2 h-4 w-4" />
               {isPending ? 'Generating...' : 'Generate with AI'}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {clearanceItems.length === 0 ? (
+          {isLoadingItems ? (
+             <div className="text-center rounded-xl border-2 border-dashed border-primary/20 bg-accent/30 p-10 md:p-16">
+                <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-primary/50" />
+                <h3 className="font-semibold text-foreground">Loading Your Items...</h3>
+             </div>
+          ) : clearanceItems.length === 0 ? (
             <div className="text-center rounded-xl border-2 border-dashed border-primary/20 bg-accent/30 p-10 md:p-16">
               <ListChecks className="mx-auto mb-4 h-12 w-12 text-primary/50" />
               <h3 className="font-semibold text-foreground">No Clearance Items Found</h3>
@@ -159,9 +198,10 @@ const ClearanceForm = () => {
                     <Textarea
                       rows={2}
                       placeholder="Notes for staff..."
-                      value={item.notes}
+                      defaultValue={item.notes} // Use defaultValue to avoid controlled/uncontrolled issues with debouncing
                       onChange={(e) => handleUpdateNotes(item.id, e.target.value)}
                       className="mt-2"
+                      disabled={item.status !== 'Pending Submission'}
                     />
                   </div>
                   <Button
@@ -169,6 +209,7 @@ const ClearanceForm = () => {
                     variant="ghost"
                     size="icon"
                     className="text-destructive hover:text-destructive self-end md:self-center"
+                     disabled={item.status !== 'Pending Submission'}
                   >
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Remove Item</span>
