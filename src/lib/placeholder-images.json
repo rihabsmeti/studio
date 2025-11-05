@@ -1,3 +1,22 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "ala-campus-bg",
+      "description": "African Leadership Academy campus at night",
+      "imageUrl": "https://storage.googleapis.com/stey-public/alan-next/ALA-campus-night-walkway.jpg",
+      "imageHint": "campus night"
+    },
+    {
+      "id": "ala-logo-horizontal",
+      "description": "African Leadership Academy horizontal logo",
+      "imageUrl": "https://www.africanleadershipacademy.org/wp-content/uploads/2023/04/ALA-logo-RGB-Horizontal-01.png",
+      "imageHint": "logo brand"
+    },
+    {
+      "id": "ala-logo-round",
+      "description": "African Leadership Academy round logo",
+      "imageUrl": "https://www.africanleadershipacademy.org/wp-content/uploads/2018/07/Aplicar-Etapa-1.png",
+      "imageHint": "logo brand"
+    }
+  ]
 }
