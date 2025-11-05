@@ -2,12 +2,15 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
-import { Home, ListChecks, User as UserIcon, Shield, Briefcase, Building } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Home, ListChecks, User as UserIcon, Shield, Briefcase, Building, LogOut } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { useUser } from '@/firebase';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { Button } from '../ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 const studentMenuItems = [
   { name: 'Dashboard', icon: Home, href: '/dashboard' },
@@ -53,6 +56,9 @@ type SidebarProps = {
 
 const Sidebar = ({ role }: SidebarProps) => {
   const pathname = usePathname();
+  const router = useRouter();
+  const auth = useAuth();
+  const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const logoHorizontal = PlaceHolderImages.find(img => img.id === 'ala-logo-horizontal');
   const logoRound = PlaceHolderImages.find(img => img.id === 'ala-logo-round');
@@ -61,6 +67,17 @@ const Sidebar = ({ role }: SidebarProps) => {
   const userInitial = user?.email?.charAt(0).toUpperCase() || 'U';
 
   const menuItems = getMenuItems(role);
+
+  const handleLogout = async () => {
+    try {
+        await signOut(auth);
+        toast({ title: 'Logged Out', description: 'You have been successfully signed out.' });
+        router.push('/');
+    } catch (error) {
+        console.error("Logout failed:", error);
+        toast({ title: 'Logout Failed', description: 'Could not log you out. Please try again.', variant: 'destructive'});
+    }
+  }
 
 
   return (
@@ -106,15 +123,21 @@ const Sidebar = ({ role }: SidebarProps) => {
         </nav>
       </div>
 
-      <div className="flex items-center space-x-3 rounded-xl bg-secondary p-4 shadow-lg">
-        <Avatar>
-           {logoRound && <AvatarImage src={logoRound.imageUrl} alt="User Avatar" data-ai-hint={logoRound.imageHint} />}
-           <AvatarFallback>{isUserLoading ? '...' : userInitial}</AvatarFallback>
-        </Avatar>
-        <div>
-          <p className="text-sm font-semibold text-secondary-foreground">{isUserLoading ? 'Loading...' : userEmail}</p>
-          <p className="text-xs capitalize text-secondary-foreground/70">{role}</p>
+      <div className="space-y-2">
+         <div className="flex items-center space-x-3 rounded-xl bg-secondary p-4 shadow-lg">
+            <Avatar>
+               {logoRound && <AvatarImage src={logoRound.imageUrl} alt="User Avatar" data-ai-hint={logoRound.imageHint} />}
+               <AvatarFallback>{isUserLoading ? '...' : userInitial}</AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="text-sm font-semibold text-secondary-foreground">{isUserLoading ? 'Loading...' : userEmail}</p>
+              <p className="text-xs capitalize text-secondary-foreground/70">{role}</p>
+            </div>
         </div>
+        <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground" onClick={handleLogout}>
+            <LogOut className="mr-3 h-5 w-5" />
+            Log Out
+        </Button>
       </div>
     </div>
   );
