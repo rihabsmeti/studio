@@ -72,7 +72,7 @@ const LoginPage = () => {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       } catch (error: any) {
         // If sign-in fails because the user doesn't exist, create a new user.
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        if (error.code === 'auth/user-not-found') {
           toast({
             title: 'Creating New Account',
             description: 'First time login? We are setting up your account.',
@@ -110,9 +110,17 @@ const LoginPage = () => {
 
     } catch (error: any) {
       console.error('Authentication failed:', error);
+      let errorMessage = error.message || 'An unexpected error occurred.';
+      // Provide a more user-friendly message for common errors
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        errorMessage = 'The email or password you entered is incorrect. Please try again.';
+      } else if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email is already associated with an account. Please try logging in.';
+      }
+      
       toast({
         title: 'Authentication Failed',
-        description: error.message || 'An unexpected error occurred.',
+        description: errorMessage,
         variant: 'destructive',
       });
       setIsLoggingIn(false);
