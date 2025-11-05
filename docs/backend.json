@@ -58,25 +58,45 @@
         },
         "userProfileId": {
           "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N ClearanceItem)"
+          "description": "Reference to UserProfile."
         },
         "name": {
           "type": "string",
           "description": "The name of the clearance item."
         },
+        "department": {
+          "type": "string",
+          "description": "The department responsible for clearing the item.",
+          "enum": ["Academics", "Library", "Sports", "Dormitory", "IT", "Finance"]
+        },
         "status": {
           "type": "string",
-          "description": "The status of the clearance item (e.g., Pending Submission, Approved, Rejected)."
+          "description": "The status of the clearance item.",
+          "enum": ["Pending", "Approved", "Rejected"]
         },
         "notes": {
           "type": "string",
-          "description": "Notes or comments about the clearance item."
+          "description": "Notes or comments from the student about the clearance item."
+        },
+        "rejectionReason": {
+            "type": "string",
+            "description": "Reason provided by an admin for rejecting an item."
+        },
+        "price": {
+            "type": "number",
+            "description": "The cost to be paid for a rejected item."
+        },
+        "paymentStatus": {
+            "type": "string",
+            "description": "The payment status for a rejected item.",
+            "enum": ["Outstanding", "Paid"]
         }
       },
       "required": [
         "id",
         "userProfileId",
         "name",
+        "department",
         "status"
       ]
     }
@@ -96,7 +116,7 @@
           "schema": {
             "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "Stores user profile data, with the userId as the document ID. This enforces path-based ownership.",
+          "description": "Stores user profile data, with the userId as the document ID.",
           "params": [
             {
               "name": "userId",
@@ -112,7 +132,7 @@
           "schema": {
             "$ref": "#/backend/entities/ClearanceItem"
           },
-          "description": "Stores clearance items associated with a specific user. Includes denormalized 'userProfileId' for authorization independence, though the path itself enforces ownership.",
+          "description": "Stores clearance items associated with a specific user.",
           "params": [
             {
               "name": "userId",
@@ -124,24 +144,7 @@
             }
           ]
         }
-      },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "adminRole",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Used for role-based access control, with the existence of a document for a userId implying admin rights.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the admin user, matching the Firebase Auth UID."
-            }
-          ]
-        }
       }
-    ],
-    "reasoning": "The Firestore data structure is designed to support the ExitPass application's role-based access and clearance management features. It leverages path-based ownership for user profiles and their associated clearance items, ensuring clear authorization boundaries and independence. \n\nAuthorization Independence:\nUser profiles and clearance items are stored in a hierarchical structure under the `/users/{userId}` path.  This eliminates the need for `get()` calls in security rules to validate ownership, as the path itself establishes the user's access rights. The `userProfileId` field in the ClearanceItem collection is redundant but reinforces the relationship and could be useful for data integrity checks.\n\nQAPs (Rules are not Filters):\nThe structure allows for secure list operations (QAPs) because each collection (`/users/{userId}/clearanceItems`) contains only documents that a specific user owns. Security rules can enforce that only the user with the corresponding `userId` can list or access documents in that subcollection, preventing unauthorized data access.\n\nPrivate User Data and Ownership:\nUser profiles are stored under `/users/{userId}`, enforcing that only the authenticated user can access their profile data. Clearance items are further nested under each user's profile (`/users/{userId}/clearanceItems`), ensuring the same level of ownership and access control.\n\nRole-Based Access (DBAC):\nUser roles are stored directly within the UserProfile document (`role` field). This allows security rules to check the user's role based on their profile data. The `roles_admin/{uid}` collection can determine admin access, enabling global authorization checks based on document existence rather than content."
+    ]
   }
 }

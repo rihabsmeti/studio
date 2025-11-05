@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, ListChecks, User as UserIcon, Shield, LogOut } from 'lucide-react';
+import { Home, ListChecks, User as UserIcon, Shield, LogOut, Banknote, UserCog } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -18,18 +18,32 @@ const studentMenuItems = [
   { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
 ];
 
-const staffMenuItems = [
+const adminMenuItems = [
     { name: 'Dashboard', icon: Home, href: '/dashboard' },
-    { name: 'Staff Dashboard', icon: Shield, href: '/dashboard/staff' },
+    { name: 'Admin Console', icon: UserCog, href: '/dashboard/admin' },
+    { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
+];
+
+const financeMenuItems = [
+    { name: 'Dashboard', icon: Home, href: '/dashboard' },
+    { name: 'Finance Console', icon: Banknote, href: '/dashboard/finance' },
+    { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
+];
+
+const securityMenuItems = [
+    { name: 'Dashboard', icon: Home, href: '/dashboard' },
+    { name: 'Security Console', icon: Shield, href: '/dashboard/security' },
     { name: 'My Profile', icon: UserIcon, href: '/dashboard/profile' },
 ];
 
 const getMenuItems = (role: string) => {
     switch (role) {
         case 'Admin':
+            return adminMenuItems;
         case 'Finance':
+            return financeMenuItems;
         case 'Security':
-            return staffMenuItems;
+            return securityMenuItems;
         default:
             return studentMenuItems;
     }
@@ -121,7 +135,7 @@ const Sidebar = ({ role }: SidebarProps) => {
               <p className="text-xs capitalize text-secondary-foreground/70">{role}</p>
             </div>
         </div>
-        <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground" onClick={handleLogout}>
+        <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground" onClick={handleLogout} suppressHydrationWarning>
             <LogOut className="mr-3 h-5 w-5" />
             Log Out
         </Button>

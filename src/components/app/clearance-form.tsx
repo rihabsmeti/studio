@@ -11,31 +11,37 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc } from 'firebase/firestore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 type ClearanceItem = {
-  id: string; // Firestore document ID
+  id: string;
   name: string;
-  status: 'Pending Submission' | 'Cleared' | 'Rejected';
+  department: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
   notes: string;
   userProfileId: string;
+  rejectionReason?: string;
+  price?: number;
+  paymentStatus?: 'Outstanding' | 'Paid';
 };
+
+const departments = ["Academics", "Library", "Sports", "Dormitory", "IT", "Finance"];
 
 const ClearanceForm = () => {
   const [itemName, setItemName] = useState('');
+  const [department, setDepartment] = useState('');
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  // Fetch user profile to get details for AI generation
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
   const { data: userProfile } = useDoc(userProfileRef);
 
-  // Fetch clearance items for the current user
   const clearanceItemsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return collection(firestore, `users/${user.uid}/clearanceItems`);
@@ -44,60 +50,13 @@ const ClearanceForm = () => {
   const { data: clearanceItems, isLoading: isLoadingItems } = useCollection<ClearanceItem>(clearanceItemsQuery);
 
   const handleGenerateForm = () => {
-    if (!userProfile) {
-        toast({ title: "Profile not loaded", description: "Please wait for your profile to load before generating a form.", variant: "destructive"});
-        return;
-    }
-
-    const studentData: GenerateClearanceFormInput = {
-        studentName: userProfile.fullName,
-        studentId: userProfile.studentId,
-        hallOfResidence: userProfile.hallOfResidence,
-    };
-
-    startTransition(async () => {
-        try {
-            toast({ title: "🤖 AI is generating your form...", description: "Please wait a moment." });
-            const result = await generateClearanceForm(studentData);
-            
-            const parseMarkdownTable = (markdown: string): Omit<ClearanceItem, 'id' | 'status' | 'notes' | 'userProfileId'>[] => {
-                if (!markdown) return [];
-                const lines = markdown.trim().split('\n');
-                const items: Omit<ClearanceItem, 'id' | 'status' | 'notes' | 'userProfileId'>[] = [];
-                for (let i = 2; i < lines.length; i++) {
-                    const columns = lines[i].split('|').map(c => c.trim());
-                    const name = columns[1];
-                    if (name) items.push({ name });
-                }
-                return items;
-            };
-
-            const parsedItems = parseMarkdownTable(result.clearanceForm);
-            
-            if (clearanceItemsQuery) {
-                for (const item of parsedItems) {
-                    const newItem: Omit<ClearanceItem, 'id'> = {
-                        ...item,
-                        status: 'Pending Submission',
-                        notes: '',
-                        userProfileId: user!.uid,
-                    };
-                    addDocumentNonBlocking(clearanceItemsQuery, newItem);
-                }
-            }
-
-            toast({ title: "✅ Success", description: "AI has populated your clearance form.", variant: "default" });
-
-        } catch (error) {
-            console.error("AI generation failed:", error);
-            toast({ title: "❌ Error", description: "Failed to generate form with AI.", variant: "destructive" });
-        }
-    });
+    // This is a placeholder for now. We can re-implement this if needed.
+    toast({ title: "AI Generation is temporarily disabled.", description: "Please add items manually.", variant: "default" });
   };
 
   const handleAddItem = () => {
-    if (!itemName.trim()) {
-      toast({ title: 'Error', description: 'Please enter an item name.', variant: 'destructive' });
+    if (!itemName.trim() || !department) {
+      toast({ title: 'Error', description: 'Please enter an item name and select a department.', variant: 'destructive' });
       return;
     }
     if (!clearanceItemsQuery || !user) {
@@ -107,12 +66,14 @@ const ClearanceForm = () => {
 
     const newItem: Omit<ClearanceItem, 'id'> = {
       name: itemName.trim(),
-      status: 'Pending Submission',
+      department: department,
+      status: 'Pending',
       notes: '',
       userProfileId: user.uid,
     };
     addDocumentNonBlocking(clearanceItemsQuery, newItem);
     setItemName('');
+    setDepartment('');
     toast({ title: 'Item added successfully!' });
   };
 
@@ -126,7 +87,6 @@ const ClearanceForm = () => {
   const handleUpdateNotes = (id: string, notes: string) => {
     if (!firestore || !user) return;
     const itemRef = doc(firestore, `users/${user.uid}/clearanceItems`, id);
-    // This is a "last-write-wins" approach. For more complex scenarios, you might debounce this.
     updateDocumentNonBlocking(itemRef, { notes });
   };
 
@@ -143,20 +103,26 @@ const ClearanceForm = () => {
       <Card className="animate-fade-in-up">
         <CardHeader>
           <CardTitle className="font-headline text-xl">Add a Clearance Item</CardTitle>
-          <CardDescription>If you have an item to return that is not on your list, add it here.</CardDescription>
+          <CardDescription>If you have an item to return that is not on your list, add it here. Select the correct department for approval.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col md:flex-row gap-4 items-end">
-          <div className="flex-1 w-full">
-            <Input
-              id="itemName"
-              type="text"
-              value={itemName}
-              onChange={(e) => setItemName(e.target.value)}
-              placeholder="e.g., Advanced Physics Textbook"
-              disabled={isUserLoading || isLoadingItems}
-            />
-          </div>
-          <Button onClick={handleAddItem} className="w-full md:w-auto" disabled={isUserLoading || isLoadingItems}>
+        <CardContent className="grid md:grid-cols-3 gap-4 items-end">
+          <Input
+            id="itemName"
+            type="text"
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
+            placeholder="e.g., Advanced Physics Textbook"
+            disabled={isUserLoading || isLoadingItems}
+          />
+          <Select onValueChange={setDepartment} value={department} disabled={isUserLoading || isLoadingItems}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a Department" />
+            </SelectTrigger>
+            <SelectContent>
+              {departments.map(dep => <SelectItem key={dep} value={dep}>{dep}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button onClick={handleAddItem} className="w-full" disabled={isUserLoading || isLoadingItems}>
             <CheckSquare className="mr-2 h-4 w-4" />
             Add Item
           </Button>
@@ -170,10 +136,11 @@ const ClearanceForm = () => {
               <CardTitle className="font-headline text-xl">My Clearance Form</CardTitle>
               <CardDescription>Update the status of your items below. Add notes for the staff to review.</CardDescription>
             </div>
-            <Button onClick={handleGenerateForm} disabled={isPending || !userProfile}>
+            {/* AI Button can be re-enabled later */}
+            {/* <Button onClick={handleGenerateForm} disabled={isPending || !userProfile}>
               <Bot className="mr-2 h-4 w-4" />
               {isPending ? 'Generating...' : 'Generate with AI'}
-            </Button>
+            </Button> */}
           </div>
         </CardHeader>
         <CardContent>
@@ -193,15 +160,22 @@ const ClearanceForm = () => {
               {clearanceItems.map((item) => (
                 <div key={item.id} className="flex flex-col md:flex-row justify-between md:items-start gap-4 rounded-lg border bg-accent/20 p-4">
                   <div className="flex-1">
-                    <p className="font-semibold text-foreground">{item.name}</p>
+                    <p className="font-semibold text-foreground">{item.name} <span className="text-sm font-normal text-muted-foreground">({item.department})</span></p>
                     <p className="text-sm text-muted-foreground italic">Status: {item.status}</p>
+                     {item.status === 'Rejected' && (
+                        <div className="mt-2 text-sm text-destructive border-l-2 border-destructive pl-2">
+                           <p><span className="font-semibold">Reason:</span> {item.rejectionReason || 'No reason provided.'}</p>
+                           <p><span className="font-semibold">Amount Due:</span> ${item.price?.toFixed(2) || '0.00'}</p>
+                           <p><span className="font-semibold">Payment:</span> {item.paymentStatus}</p>
+                        </div>
+                    )}
                     <Textarea
                       rows={2}
                       placeholder="Notes for staff..."
-                      defaultValue={item.notes} // Use defaultValue to avoid controlled/uncontrolled issues with debouncing
+                      defaultValue={item.notes}
                       onChange={(e) => handleUpdateNotes(item.id, e.target.value)}
                       className="mt-2"
-                      disabled={item.status !== 'Pending Submission'}
+                      disabled={item.status !== 'Pending'}
                     />
                   </div>
                   <Button
@@ -209,7 +183,8 @@ const ClearanceForm = () => {
                     variant="ghost"
                     size="icon"
                     className="text-destructive hover:text-destructive self-end md:self-center"
-                     disabled={item.status !== 'Pending Submission'}
+                     disabled={item.status !== 'Pending'}
+                     suppressHydrationWarning
                   >
                     <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Remove Item</span>
@@ -223,12 +198,14 @@ const ClearanceForm = () => {
             <Button
               variant="outline"
               onClick={() => toast({ title: 'PDF generation initiated.' })}
+               suppressHydrationWarning
             >
               <Download className="mr-2 h-4 w-4" />
               Download PDF
             </Button>
             <Button
               onClick={handleSubmit}
+               suppressHydrationWarning
             >
               <Send className="mr-2 h-4 w-4" />
               Submit for Final Review

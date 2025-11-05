@@ -12,76 +12,63 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-    /**
-     * @description Controls access to user profile documents. Only the authenticated user can read or write their own profile.
-     * @path /users/{userId}
-     * @allow (create) User with UID 'user_abc' can create a profile at /users/user_abc.
-     * @allow (get, update, delete) User with UID 'user_abc' can read/update/delete their profile at /users/user_abc.
-     * @deny (create) User with UID 'user_xyz' cannot create a profile at /users/user_abc.
-     * @deny (get, update, delete) User with UID 'user_xyz' cannot read/update/delete the profile at /users/user_abc.
-     * @principle Enforces document ownership for writes and restricts access to a user's own data.
-     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isStaff() {
+      let role = getRole();
+      return role in ['Admin', 'Security', 'Finance'];
+    }
+
+    function isFinance() {
+      return getRole() == 'Finance';
+    }
+
+    function isAdmin() {
+        return getRole() == 'Admin';
+    }
+    
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
+      allow get: if isOwner(userId) || isStaff();
+      allow list: if false; // User listing is disabled for privacy.
       
-      function isStaffRole(role) {
-        return role in ['Admin', 'Security', 'Finance'];
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if false; // User listing is not permitted for privacy.
+      // Allow create if user is signed in, is the owner, and the ID matches.
+      // Prevent users from assigning themselves a staff role unless they have a specific email domain.
       allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId
-                  && (isStaffRole(request.resource.data.role) == false || request.resource.data.email.matches('.*@africanleadershipacademy.org'));
+                  && (request.resource.data.role == 'Student' || request.resource.data.email.matches('.*@africanleadershipacademy.org'));
 
+      // Allow update if the user is the owner and the ID doesn't change.
       allow update: if isOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isOwner(userId);
     }
     
-    /**
-     * @description Controls access to clearance items for a specific user.
-     * @path /users/{userId}/clearanceItems/{clearanceItemId}
-     * @principle Enforces document ownership and allows staff to manage items via collection group queries.
-     */
     match /users/{userId}/clearanceItems/{clearanceItemId} {
-       function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-      
-      function isStaff() {
-        // This function uses `get()` which is allowed for `get` and `update` rules,
-        // but NOT for `list` rules. This is why staff access is handled by the collectionGroup query.
-        let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-        return userRole in ['Admin', 'Security', 'Finance'];
-      }
-
-      // allow list for owner works for direct collection queries.
-      // staff will use a collectionGroup query which relies on the 'get' permission below.
+      // Students can create and delete their own items, and list them.
+      allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
+      allow delete: if isOwner(userId);
       allow list: if isOwner(userId);
 
-      // Allow get/update by owner OR staff.
-      allow get, update: if isOwner(userId) || isStaff();
-      
-      // Only owner can create or delete their own items.
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userProfileId == userId;
-      allow delete: if isOwner(userId);
-    }
-    
-    /**
-     * @description DEPRECATED. Admin roles are now stored in the user's profile. This collection is no longer in use but the rule remains to prevent accidental creation.
-     */
-    match /roles_admin/{userId} {
-      allow read, write: if false;
+      // Staff and owners can read any item. This enables collectionGroup queries for staff.
+      allow get: if isOwner(userId) || isStaff();
+
+      // Update permissions are role-based.
+      allow update: if 
+        // Owners can update their own items if the status is 'Pending'.
+        (isOwner(userId) && resource.data.status == 'Pending') ||
+        // Admins can update status, rejectionReason, and price.
+        (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'rejectionReason', 'price', 'paymentStatus'])) ||
+        // Finance can only update the paymentStatus.
+        (isFinance() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentStatus']));
     }
   }
 }
