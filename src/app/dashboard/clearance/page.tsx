@@ -1,5 +1,7 @@
 import AdminClearanceView from "@/components/app/admin-clearance-view";
 import ClearanceForm from "@/components/app/clearance-form";
+import FinanceClearanceView from "@/components/app/finance-clearance-view";
+import SecurityClearanceView from "@/components/app/security-clearance-view";
 
 export default function ClearancePage({
   searchParams,
@@ -10,6 +12,14 @@ export default function ClearancePage({
 
   if (role === 'Admin') {
     return <AdminClearanceView />;
+  }
+
+  if (role === 'Finance') {
+    return <FinanceClearanceView />;
+  }
+
+  if (role === 'Security') {
+    return <SecurityClearanceView />;
   }
   
   // Default to student view
