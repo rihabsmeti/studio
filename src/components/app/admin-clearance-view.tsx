@@ -1,17 +1,17 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirestore, useMemoFirebase } from '@/firebase/provider';
-import { collectionGroup, query } from 'firebase/firestore';
+import { collectionGroup, query, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useDoc } from '@/firebase';
 
 type ClearanceItem = {
   id: string;
@@ -19,10 +19,13 @@ type ClearanceItem = {
   status: 'Pending Submission' | 'Cleared' | 'Rejected';
   notes: string;
   userProfileId: string;
-  // This will be populated after fetching user data
-  studentName?: string;
-  studentEmail?: string;
 };
+
+type UserProfile = {
+  fullName: string;
+  email: string;
+};
+
 
 const AdminClearanceView = () => {
   const firestore = useFirestore();
@@ -87,7 +90,8 @@ const AdminClearanceView = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student ID</TableHead>
+                <TableHead>Student Name</TableHead>
+                <TableHead>Student Email</TableHead>
                 <TableHead>Item Name</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Notes</TableHead>
@@ -97,46 +101,11 @@ const AdminClearanceView = () => {
             <TableBody>
               {clearanceItems && clearanceItems.length > 0 ? (
                 clearanceItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-mono text-xs">{item.userProfileId}</TableCell>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          item.status === 'Cleared' ? 'default' :
-                          item.status === 'Rejected' ? 'destructive' : 'secondary'
-                        }
-                        className={item.status === 'Cleared' ? 'bg-green-600' : ''}
-                      >
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className='italic text-muted-foreground'>{item.notes || "No notes"}</TableCell>
-                    <TableCell className="text-right">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-green-600 hover:text-green-700"
-                            onClick={() => handleUpdateStatus(item, 'Cleared')}
-                            disabled={item.status === 'Cleared'}
-                        >
-                            <CheckCircle className="h-5 w-5" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive/80"
-                            onClick={() => handleUpdateStatus(item, 'Rejected')}
-                             disabled={item.status === 'Rejected'}
-                        >
-                            <XCircle className="h-5 w-5" />
-                        </Button>
-                    </TableCell>
-                  </TableRow>
+                  <ClearanceItemRow key={item.id} item={item} onUpdateStatus={handleUpdateStatus} />
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No clearance items submitted yet.
                   </TableCell>
                 </TableRow>
@@ -148,5 +117,67 @@ const AdminClearanceView = () => {
     </div>
   );
 };
+
+// A helper component to fetch user profile for each row
+const ClearanceItemRow = ({ item, onUpdateStatus }: { item: ClearanceItem; onUpdateStatus: (item: ClearanceItem, status: 'Cleared' | 'Rejected') => void }) => {
+    const firestore = useFirestore();
+    
+    const userProfileRef = useMemoFirebase(() => {
+        if (!firestore || !item.userProfileId) return null;
+        return doc(firestore, 'users', item.userProfileId);
+    }, [firestore, item.userProfileId]);
+
+    const { data: userProfile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileRef);
+
+    if (isLoadingProfile) {
+        return (
+            <TableRow>
+                <TableCell colSpan={6} className="text-center">
+                    <Loader2 className="mx-auto h-4 w-4 animate-spin text-primary" />
+                </TableCell>
+            </TableRow>
+        )
+    }
+
+    return (
+        <TableRow>
+            <TableCell>{userProfile?.fullName || 'N/A'}</TableCell>
+            <TableCell>{userProfile?.email || 'N/A'}</TableCell>
+            <TableCell className="font-medium">{item.name}</TableCell>
+            <TableCell>
+              <Badge
+                variant={
+                  item.status === 'Cleared' ? 'default' :
+                  item.status === 'Rejected' ? 'destructive' : 'secondary'
+                }
+                className={item.status === 'Cleared' ? 'bg-green-600' : ''}
+              >
+                {item.status}
+              </Badge>
+            </TableCell>
+            <TableCell className='italic text-muted-foreground'>{item.notes || "No notes"}</TableCell>
+            <TableCell className="text-right">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-green-600 hover:text-green-700"
+                    onClick={() => onUpdateStatus(item, 'Cleared')}
+                    disabled={item.status === 'Cleared'}
+                >
+                    <CheckCircle className="h-5 w-5" />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive/80"
+                    onClick={() => onUpdateStatus(item, 'Rejected')}
+                     disabled={item.status === 'Rejected'}
+                >
+                    <XCircle className="h-5 w-5" />
+                </Button>
+            </TableCell>
+        </TableRow>
+    )
+}
 
 export default AdminClearanceView;
