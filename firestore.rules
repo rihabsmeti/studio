@@ -30,74 +30,55 @@ service cloud.firestore {
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+      
+      function isStaffRole(role) {
+        return role in ['Admin', 'Security', 'Finance'];
       }
 
       allow get: if isOwner(userId);
       allow list: if false; // User listing is not permitted for privacy.
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
-    }
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId
+                  && (isStaffRole(request.resource.data.role) == false || request.resource.data.email.matches('.*@africanleadershipacademy.org'));
 
+      allow update: if isOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isOwner(userId);
+    }
+    
     /**
-     * @description Controls access to clearance items for a specific user. Only the owner can manage their clearance items.
+     * @description Controls access to clearance items for a specific user.
      * @path /users/{userId}/clearanceItems/{clearanceItemId}
-     * @allow (create) User with UID 'user_abc' can create a clearance item under /users/user_abc/clearanceItems/item_1.
-     * @allow (get, list, update, delete) User with UID 'user_abc' can read/list/update/delete their clearance items under /users/user_abc/clearanceItems/.
-     * @deny (create) User with UID 'user_xyz' cannot create a clearance item under /users/user_abc/clearanceItems/item_1.
-     * @deny (get, list, update, delete) User with UID 'user_xyz' cannot read/list/update/delete clearance items under /users/user_abc/clearanceItems/.
-     * @principle Enforces document ownership and prevents unauthorized access to clearance items.
+     * @principle Enforces document ownership and allows staff to manage items via collection group queries.
      */
     match /users/{userId}/clearanceItems/{clearanceItemId} {
-      function isSignedIn() {
+       function isSignedIn() {
         return request.auth != null;
       }
 
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
       
-      function isAdmin() {
-          return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      function isStaff() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Admin', 'Security', 'Finance'];
       }
 
-      allow get: if isOwner(userId) || isAdmin();
+      // allow list for owner works for direct collection queries.
+      // staff will use a collectionGroup query which relies on the 'get' permission below.
       allow list: if isOwner(userId);
+
+      // Allow get/update by owner OR staff.
+      allow get, update: if isOwner(userId) || isStaff();
+      
+      // Only owner can create or delete their own items.
       allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userProfileId == userId;
-      allow update: if (isExistingOwner(userId) && request.resource.data.userProfileId == userId) || isAdmin();
-      allow delete: if isExistingOwner(userId);
+      allow delete: if isOwner(userId);
     }
-
-      /**
-       * @description Restricts access to the `roles_admin` collection to only allow administrators to manage admin roles. The existence of a document
-       *  at `/roles_admin/{userId}` grants admin privileges to the user with the corresponding `userId`.
-       * @path /roles_admin/{userId}
-       * @allow (create) Allow creation of admin role for the current user.
-       * @allow (get, update, delete) If the user has an existing admin role, allow read/write access.
-       * @deny (create, update, delete) Deny create/update/delete access to non-admin users
-       * @principle Role-based access control for administrative functions.
-       */
-      match /roles_admin/{userId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
-
-        function isAdmin() {
-            return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-        }
-
-        allow get: if isAdmin();
-        allow list: if false;
-        allow create: if isSignedIn() && isAdmin();
-        allow update: if isAdmin() && resource != null;
-        allow delete: if isAdmin() && resource != null;
-      }
+    
+    /**
+     * @description DEPRECATED. Admin roles are now stored in the user's profile. This collection is no longer in use but the rule remains to prevent accidental creation.
+     */
+    match /roles_admin/{userId} {
+      allow read, write: if false;
+    }
   }
 }
