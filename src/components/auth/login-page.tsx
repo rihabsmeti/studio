@@ -11,6 +11,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
+import { useAuth } from '@/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 const roles = [
     { name: 'Student', icon: User },
@@ -26,33 +31,82 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
+  const auth = useAuth();
+  const firestore = useFirestore();
+
 
   const bgImage = PlaceHolderImages.find(img => img.id === 'ala-campus-bg');
   const logoHorizontal = PlaceHolderImages.find(img => img.id === 'ala-logo-horizontal');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoggingIn || !selectedRole) return;
-
-    if (!email || !password) {
-        toast({
-            title: 'Missing Information',
-            description: 'Please enter your email and password.',
-            variant: 'destructive',
-        });
-        return;
+    if (isLoggingIn || !selectedRole || !email || !password) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please select a role and enter your email and password.',
+        variant: 'destructive',
+      });
+      return;
     }
 
     setIsLoggingIn(true);
     toast({
       title: 'Logging In...',
-      description: `You will be redirected as ${selectedRole}.`,
+      description: `Authenticating as ${selectedRole}.`,
     });
 
-    setTimeout(() => {
-      // In a real app, you'd perform authentication here.
+    try {
+      let userCredential;
+      try {
+        // First, try to sign in.
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
+      } catch (error: any) {
+        // If sign-in fails because the user doesn't exist, create a new user.
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+          toast({
+            title: 'Creating New Account',
+            description: 'First time login? We are setting up your account.',
+          });
+          userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        } else {
+          // For other errors (wrong password, etc.), re-throw to be caught by the outer catch.
+          throw error;
+        }
+      }
+
+      const user = userCredential.user;
+
+      // Create or update user profile in Firestore.
+      const userProfileRef = doc(firestore, 'users', user.uid);
+      const userProfileData = {
+        id: user.uid,
+        email: user.email,
+        role: selectedRole,
+        fullName: user.displayName || 'New User',
+        studentId: `SID-${user.uid.substring(0, 8).toUpperCase()}`,
+        hallOfResidence: 'Not Assigned',
+        gender: 'Not Specified',
+      };
+      
+      // We use a non-blocking write operation here.
+      setDocumentNonBlocking(userProfileRef, userProfileData, { merge: true });
+
+      toast({
+        title: 'Login Successful!',
+        description: `Welcome! Redirecting to your dashboard.`,
+      });
+
       router.push(`/dashboard?role=${selectedRole}`);
-    }, 1500);
+
+    } catch (error: any) {
+      console.error('Authentication failed:', error);
+      toast({
+        title: 'Authentication Failed',
+        description: error.message || 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+      setIsLoggingIn(false);
+    }
   };
 
   return (
@@ -147,7 +201,7 @@ const LoginPage = () => {
                             />
                         </div>
                     </div>
-                  <Button type="submit" className="w-full bg-primary/80 hover:bg-primary text-white font-bold" disabled={isLoggingIn}>
+                  <Button type="submit" className="w-full bg-primary/80 hover:bg-primary text-white font-bold" disabled={isLoggingin}>
                     {isLoggingIn ? 'Logging in...' : 'Log In'}
                     <LogIn className="ml-2 h-5 w-5" />
                   </Button>

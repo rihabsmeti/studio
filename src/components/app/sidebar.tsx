@@ -7,6 +7,7 @@ import { Home, ListChecks, User as UserIcon } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { useUser } from '@/firebase';
 
 const menuItems = [
   { name: 'Dashboard', icon: Home, href: '/dashboard' },
@@ -20,8 +21,13 @@ type SidebarProps = {
 
 const Sidebar = ({ role }: SidebarProps) => {
   const pathname = usePathname();
+  const { user, isUserLoading } = useUser();
   const logoHorizontal = PlaceHolderImages.find(img => img.id === 'ala-logo-horizontal');
   const logoRound = PlaceHolderImages.find(img => img.id === 'ala-logo-round');
+
+  const userEmail = user?.email || "loading...";
+  const userInitial = user?.email?.charAt(0).toUpperCase() || 'U';
+
 
   return (
     <div className="hidden h-screen w-64 shrink-0 flex-col justify-between border-r bg-card p-4 md:flex">
@@ -47,7 +53,7 @@ const Sidebar = ({ role }: SidebarProps) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
-              <Link href={item.href} key={item.name}>
+              <Link href={`${item.href}?role=${role}`} key={item.name}>
                 <div
                   className={cn(
                     'relative flex w-full items-center space-x-3 rounded-xl p-3 text-left transition-all duration-200',
@@ -69,10 +75,10 @@ const Sidebar = ({ role }: SidebarProps) => {
       <div className="flex items-center space-x-3 rounded-xl bg-secondary p-4 shadow-lg">
         <Avatar>
            {logoRound && <AvatarImage src={logoRound.imageUrl} alt="User Avatar" data-ai-hint={logoRound.imageHint} />}
-           <AvatarFallback>{role.charAt(0)}</AvatarFallback>
+           <AvatarFallback>{isUserLoading ? '...' : userInitial}</AvatarFallback>
         </Avatar>
         <div>
-          <p className="text-sm font-semibold text-secondary-foreground">ahmedff@gmail.com</p>
+          <p className="text-sm font-semibold text-secondary-foreground">{isUserLoading ? 'Loading...' : userEmail}</p>
           <p className="text-xs capitalize text-secondary-foreground/70">{role}</p>
         </div>
       </div>
