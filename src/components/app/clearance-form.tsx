@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition, useEffect } from 'react';
-import { CheckSquare, Download, ListChecks, Send, Trash2, Bot } from 'lucide-react';
+import { CheckSquare, Download, ListChecks, Send, Trash2, Bot, Loader2 } from 'lucide-react';
 import { generateClearanceForm, GenerateClearanceFormInput } from '@/ai/flows/generate-clearance-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
