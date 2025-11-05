@@ -201,7 +201,7 @@ const LoginPage = () => {
                             />
                         </div>
                     </div>
-                  <Button type="submit" className="w-full bg-primary/80 hover:bg-primary text-white font-bold" disabled={isLoggingin}>
+                  <Button type="submit" className="w-full bg-primary/80 hover:bg-primary text-white font-bold" disabled={isLoggingIn}>
                     {isLoggingIn ? 'Logging in...' : 'Log In'}
                     <LogIn className="ml-2 h-5 w-5" />
                   </Button>
