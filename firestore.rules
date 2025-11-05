@@ -59,6 +59,8 @@ service cloud.firestore {
       }
       
       function isStaff() {
+        // This function uses `get()` which is allowed for `get` and `update` rules,
+        // but NOT for `list` rules. This is why staff access is handled by the collectionGroup query.
         return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Admin', 'Security', 'Finance'];
       }
 
