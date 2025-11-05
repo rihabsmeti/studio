@@ -14,7 +14,7 @@ import { Label } from '../ui/label';
 
 const roles = [
     { name: 'Student', icon: User },
-    { name: 'Staffulty', icon: Briefcase },
+    { name: 'Finance', icon: Briefcase },
     { name: 'Security', icon: Shield },
     { name: 'Admin', icon: Building },
 ];
