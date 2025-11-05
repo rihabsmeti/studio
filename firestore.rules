@@ -61,7 +61,8 @@ service cloud.firestore {
       function isStaff() {
         // This function uses `get()` which is allowed for `get` and `update` rules,
         // but NOT for `list` rules. This is why staff access is handled by the collectionGroup query.
-        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Admin', 'Security', 'Finance'];
+        let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+        return userRole in ['Admin', 'Security', 'Finance'];
       }
 
       // allow list for owner works for direct collection queries.
