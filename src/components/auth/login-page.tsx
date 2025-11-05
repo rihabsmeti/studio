@@ -49,6 +49,16 @@ const LoginPage = () => {
       return;
     }
 
+    const adminRoles = ['Admin', 'Finance', 'Security'];
+    if (adminRoles.includes(selectedRole) && !email.endsWith('@africanleadershipacademy.org')) {
+        toast({
+            title: 'Access Denied',
+            description: `Only users with an @africanleadershipacademy.org email can log in as ${selectedRole}.`,
+            variant: 'destructive',
+        });
+        return;
+    }
+
     setIsLoggingIn(true);
     toast({
       title: 'Logging In...',
