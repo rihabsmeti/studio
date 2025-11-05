@@ -7,6 +7,7 @@ import { LogIn, User, Shield, Briefcase } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn } from '@/lib/utils';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 
 const roles = [
   { name: 'Student', icon: User },
@@ -44,7 +45,7 @@ const LoginPage = () => {
         <Image
           src={bgImage.imageUrl}
           alt={bgImage.description}
-          layout="fill"
+          fill
           objectFit="cover"
           className="absolute inset-0 z-[-10] animate-ken-burns"
           priority
@@ -53,55 +54,56 @@ const LoginPage = () => {
       )}
       <div className="absolute inset-0 z-[-5] bg-black/50" />
 
-      <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 animate-fade-slide-down">
-        {logoHorizontal && (
-          <Image
-            src={logoHorizontal.imageUrl}
-            alt={logoHorizontal.description}
-            width={400}
-            height={80}
-            data-ai-hint={logoHorizontal.imageHint}
-          />
-        )}
-      </div>
-
-      <div className="relative z-10 flex h-full w-full items-center justify-center">
-        <div className="w-full max-w-md md:max-w-lg p-8 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl animate-fade-in-slide-up">
-          <h2 className="font-headline text-5xl text-white text-center mb-2 drop-shadow-md">Good Morning</h2>
-          <p className="font-body text-white/80 text-center mb-8">
-            Welcome to ExitPass. Please select your role to log in.
-          </p>
-
-          <div className="grid grid-cols-2 gap-6">
-            {roles.map((role) => {
-              const Icon = role.icon;
-              const isSelected = selectedRole === role.name;
-              return (
-                <button
-                  key={role.name}
-                  onClick={() => handleRoleSelect(role.name)}
-                  className={cn(
-                    "p-6 rounded-xl transition-all duration-300 ease-in-out",
-                    "flex flex-col items-center justify-center space-y-2 text-white",
-                    "bg-white/15 border-2 border-transparent shadow-lg",
-                    "hover:scale-[1.03] hover:shadow-primary/20 hover:shadow-xl",
-                    isSelected && "border-primary/70 shadow-lg shadow-primary/50"
-                  )}
-                  disabled={isLoggingIn}
-                >
-                  <Icon className={cn("w-8 h-8 transition-colors duration-300", isSelected ? 'text-primary' : 'text-white/80')} />
-                  <span className={cn("text-lg font-semibold transition-colors duration-300", isSelected ? 'text-white' : 'text-white')}>
-                    {role.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <p className="text-center text-white/60 text-sm mt-12">
-            &copy; {new Date().getFullYear()} African Leadership Academy. All rights reserved.
-          </p>
-        </div>
+      <div className="relative z-10 flex h-full w-full items-center justify-center p-4">
+        <Card className="w-full max-w-md animate-fade-in-slide-up rounded-2xl bg-black/30 text-white backdrop-blur-lg border-white/20 shadow-2xl">
+           <CardHeader className="items-center text-center">
+            {logoHorizontal && (
+              <Image
+                src={logoHorizontal.imageUrl}
+                alt={logoHorizontal.description}
+                width={280}
+                height={56}
+                className="mb-4"
+                data-ai-hint={logoHorizontal.imageHint}
+              />
+            )}
+            <CardTitle className="font-headline text-4xl drop-shadow-md">Welcome to ExitPass</CardTitle>
+            <CardDescription className="text-white/80">
+              Please select your role to continue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {roles.map((role) => {
+                  const Icon = role.icon;
+                  const isSelected = selectedRole === role.name;
+                  return (
+                    <button
+                      key={role.name}
+                      onClick={() => handleRoleSelect(role.name)}
+                      className={cn(
+                        "p-6 rounded-xl transition-all duration-300 ease-in-out",
+                        "flex flex-col items-center justify-center space-y-2",
+                        "bg-white/10 border-2 border-transparent shadow-lg",
+                        "hover:scale-[1.03] hover:shadow-primary/20 hover:shadow-xl hover:bg-white/20",
+                        isSelected && "border-primary/80 shadow-lg shadow-primary/50 bg-white/25",
+                        isLoggingIn && !isSelected && "opacity-50 cursor-not-allowed"
+                      )}
+                      disabled={isLoggingIn}
+                    >
+                      <Icon className={cn("w-8 h-8 transition-colors duration-300", isSelected ? 'text-primary' : 'text-white/90')} />
+                      <span className="text-lg font-semibold">
+                        {role.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-center text-white/60 text-xs pt-4">
+                &copy; {new Date().getFullYear()} African Leadership Academy. All rights reserved.
+              </p>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
