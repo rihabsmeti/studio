@@ -1,6 +1,6 @@
-# Master Prompt for "ExitPass" Application
+# Master Prompt for "ExitPass" Application (Supabase Version)
 
-This document contains the master prompt for generating the "ExitPass" student clearance application. It is structured into logical phases to guide the AI model through a seamless development process, incorporating all final features and critical bug fixes derived from a previous iterative development cycle.
+This document contains the master prompt for generating the "ExitPass" student clearance application using Supabase as the backend. It is structured into logical phases to guide an AI model (like v0) through a seamless development process.
 
 ## Phase 1: Initial Project Scaffolding & Core App Structure
 
@@ -11,21 +11,35 @@ This document contains the master prompt for generating the "ExitPass" student c
   - **Framework:** Next.js (App Router)
   - **Language:** TypeScript
   - **Styling:** Tailwind CSS with ShadCN UI components.
-  - **Backend:** Firebase (Authentication and Firestore)
+  - **Backend:** **Supabase** (PostgreSQL, Auth, and Storage)
   - **AI:** Genkit (for future AI-powered features, establish initial setup)
 
-### 1.2. Firebase Backend and Data Modeling
-- **Entities (`docs/backend.json`):**
-  - **`UserProfile`:** Stores user data including `id`, `fullName`, `email`, `studentId`, `hallOfResidence`, `gender`, and `role`.
-  - **`ClearanceItem`:** Represents an item a student needs to clear. Includes `id`, `userProfileId`, `name`, `department`, `status` (`Pending`, `Approved`, `Rejected`), `notes`, `rejectionReason`, `price`, and `paymentStatus` (`Outstanding`, `Paid`).
-- **Authentication:** Enable Email/Password and Anonymous providers.
-- **Firestore Structure (`docs/backend.json`):**
-  - `/users/{userId}`: Stores `UserProfile` documents.
-  - `/users/{userId}/clearanceItems/{clearanceItemId}`: Stores `ClearanceItem` documents as a subcollection.
+### 1.2. Supabase Backend and Data Modeling
+- **Setup:** Initialize the Supabase client. Create a utility file (`src/lib/supabase/client.ts`) to export a singleton Supabase client instance for use throughout the application.
+- **Database Tables:**
+  - **`profiles`:** Stores user data.
+    - `id` (uuid, primary key, references `auth.users.id`)
+    - `full_name` (text)
+    - `email` (text, unique)
+    - `student_id` (text, unique)
+    - `hall_of_residence` (text)
+    - `gender` (text)
+    - `role` (text, e.g., 'Student', 'Admin', 'Finance', 'Security')
+  - **`clearance_items`:** Represents an item a student needs to clear.
+    - `id` (uuid, primary key, default `gen_random_uuid()`)
+    - `user_id` (uuid, foreign key to `profiles.id`)
+    - `name` (text)
+    - `department` (text, enum: "Academics", "Library", "Sports", "Dormitory", "IT", "Finance")
+    - `status` (text, enum: 'Pending', 'Approved', 'Rejected', default 'Pending')
+    - `notes` (text, nullable)
+    - `rejection_reason` (text, nullable)
+    - `price` (numeric, nullable)
+    - `payment_status` (text, enum: 'Outstanding', 'Paid', nullable)
+    - `created_at` (timestamp with time zone, default `now()`)
 
 ### 1.3. Core App Layout and Navigation
 - **Root Layout (`src/app/layout.tsx`):**
-  - Set up `FirebaseClientProvider` and `Toaster`.
+  - Set up a Supabase provider/context if needed to pass the client down. Include a `Toaster` for notifications.
   - Import Google Fonts: `Inter` for body and `Playfair Display` for headlines.
 - **Dashboard Layout (`src/app/dashboard/layout.tsx`):**
   - A two-column layout featuring a persistent `Sidebar` component on the left and a main content area on the right.
@@ -33,13 +47,13 @@ This document contains the master prompt for generating the "ExitPass" student c
   - The sidebar should be collapsible and responsive for mobile, using a drawer.
 - **Sidebar Component (`src/components/app/sidebar.tsx`):**
   - Displays the ALA logo and application name.
-  - Navigation links should be dynamically rendered based on the user's `role`, which is passed as a prop from the layout (read from URL search params).
+  - Navigation links should be dynamically rendered based on the user's `role`, which is fetched from their profile in the `profiles` table.
     - **Student:** Dashboard, My Clearance, My Profile.
     - **Admin:** Dashboard, Admin Console, My Profile.
     - **Finance:** Dashboard, Finance Console, My Profile.
     - **Security:** Dashboard, Security Console, My Profile.
   - Displays the current user's email and role.
-  - Includes a "Log Out" button that signs the user out and redirects to the login page.
+  - Includes a "Log Out" button that calls `supabase.auth.signOut()` and redirects to the login page.
 
 ---
 
@@ -47,17 +61,17 @@ This document contains the master prompt for generating the "ExitPass" student c
 
 ### 2.1. Login Page (`src/app/page.tsx` -> `src/components/auth/login-page.tsx`)
 - **UI:** A visually appealing, full-screen page with a background image of the ALA campus.
-- **Role Selection:** Users must first select their role (Student, Admin, Finance, Security) from a set of clickable cards.
+- **Role Selection:** Users must first select their role (Student, Admin, Finance, Security).
 - **Authentication Logic (`handleLogin` function):**
-  - **CRITICAL FIX:** Implement robust sign-in/sign-up logic.
-    1. Attempt `signInWithEmailAndPassword`.
-    2. If the error code is `auth/user-not-found`, then (and only then) attempt `createUserWithEmailAndPassword`.
-    3. If the error code is `auth/invalid-credential` or any other error, display a user-friendly error message (e.g., "The email or password you entered is incorrect.") without attempting to create a new account.
-    4. For staff roles (Admin, Finance, Security), enforce that the email must end with `@africanleadershipacademy.org`.
-  - Upon successful authentication, create/update a user profile document in Firestore at `/users/{uid}` with their role and default information, then redirect to the appropriate dashboard, passing the role in the URL (`/dashboard?role=...`).
+  - Use the Supabase client (`supabase.auth`).
+  - First, attempt `signInWithPassword`.
+  - If the error indicates the user does not exist, then attempt `signUp`.
+  - When signing up a new user, create a corresponding entry in the `profiles` table with their selected `role`. A Supabase Function (or trigger) is the ideal way to do this automatically upon user creation.
+  - For staff roles (Admin, Finance, Security), enforce that the email must end with `@africanleadershipacademy.org`.
+  - Upon successful authentication, redirect to the appropriate dashboard, passing the role in the URL (`/dashboard?role=...`).
 
 ### 2.2. Profile Page (`src/app/dashboard/profile/page.tsx`)
-- A form allowing users to view and update their profile information (Full Name, Hall of Residence, Gender). Email and Student ID should be read-only.
+- A form allowing users to view and update their profile information in the `profiles` table. Email and Student ID should be read-only.
 
 ---
 
@@ -65,49 +79,47 @@ This document contains the master prompt for generating the "ExitPass" student c
 
 ### 3.1. Clearance Page UI (`src/app/dashboard/clearance/page.tsx`)
 - A dashboard for students to manage their clearance items.
-- **Add Item Form:** A card with fields for `Item Name` and `Department` (a select dropdown: "Academics", "Library", "Sports", "Dormitory", "IT", "Finance") and an "Add Item" button.
+- **Add Item Form:** Fields for `Item Name` and `Department` (select dropdown).
 - **Items List:**
-  - Display all of the student's `ClearanceItem` documents from Firestore.
+  - Fetch and display all `clearance_items` for the currently logged-in user.
   - Each item card should show its name, department, and status.
-  - If status is `Rejected`, display the `rejectionReason`, `price`, and `paymentStatus`.
+  - If status is `Rejected`, display the `rejection_reason`, `price`, and `payment_status`.
   - Provide a `Textarea` for students to add `notes` to pending items.
-  - Provide a "Remove" button (trash icon) for pending items.
+  - Provide a "Remove" button for pending items.
 
 ---
 
-## Phase 4: Staff Dashboards & Security Rules (CRITICAL)
+## Phase 4: Staff Dashboards & Row Level Security (RLS)
 
-### 4.1. Firestore Security Rules (`firestore.rules`)
-- **Implement robust, role-based security rules that avoid common pitfalls.**
-- **`function isOwner(userId)`:** Returns `request.auth.uid == userId`.
-- **`function getRole()`:** Returns the role from the user's own profile document: `get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role`.
-- **`function isAdmin()`:** Returns `getRole() == 'Admin'`.
-- **`function isFinance()`:** Returns `getRole() == 'Finance'`.
-- **`function isStaff()`:** Returns `getRole() in ['Admin', 'Security', 'Finance']`.
-- **`/users/{userId}`:**
-  - `allow get`: if `isOwner(userId)` or `isStaff()`.
-  - `allow create`: if `isOwner(userId)`. Add a check to prevent users from assigning themselves a staff role unless their email matches the `@africanleadershipacademy.org` domain.
-- **`/users/{userId}/clearanceItems/{clearanceItemId}`:**
-  - **`allow list`: `if isOwner(userId);`** (This is the most critical rule. It allows any user to list their *own* items, which resolves the permission error for staff viewing their own clearance page).
-  - **`allow get`: `if isOwner(userId) || isStaff();`** (This allows staff `collectionGroup` queries to work, as they rely on `get` permissions).
-  - **`allow create, delete`: `if isOwner(userId);`**
-  - **`allow update`:**
-    - if `isOwner(userId)` and the item status is 'Pending'.
-    - if `isAdmin()` and only the `status`, `rejectionReason`, `price`, or `paymentStatus` fields are being changed.
-    - if `isFinance()` and only the `paymentStatus` field is being changed.
+### 4.1. Supabase Row Level Security (RLS) Policies
+- **CRITICAL:** Enable RLS on both `profiles` and `clearance_items` tables.
+- Create a helper function in SQL: `CREATE OR REPLACE FUNCTION get_my_role() RETURNS TEXT AS $$ SELECT role FROM public.profiles WHERE id = auth.uid() $$ LANGUAGE sql SECURITY DEFINER;`
+
+- **`profiles` table policies:**
+  - `allow SELECT`: for users to read their own profile (`id = auth.uid()`) OR if the user is a staff member (`get_my_role() IN ('Admin', 'Security', 'Finance')`).
+  - `allow UPDATE`: for users to update their own profile (`id = auth.uid()`).
+  
+- **`clearance_items` table policies:**
+  - `allow SELECT`: for users to see their own items (`user_id = auth.uid()`) OR if the user is a staff member.
+  - `allow INSERT`: for users to add items for themselves (`user_id = auth.uid()`).
+  - `allow DELETE`: for users to delete their own items when status is 'Pending'.
+  - `allow UPDATE`:
+    - for owners if the item status is 'Pending'.
+    - for 'Admin' role if they are only changing `status`, `rejection_reason`, `price`, or `paymentStatus`.
+    - for 'Finance' role if they are only changing `paymentStatus`.
 
 ### 4.2. Admin Dashboard (`src/app/dashboard/admin/page.tsx`)
-- **Query:** Use a `collectionGroup` query to fetch all `clearanceItems` from all users.
+- **Query:** Fetch all `clearance_items` from all users. RLS policies will ensure only admins can do this.
 - **UI:** A data table with columns: Student (Name/Email), Department, Item Name, Notes, Status.
 - **Actions:**
-  - For each `Pending` item, provide "Approve" (Check icon) and "Reject" (X icon) buttons.
+  - For `Pending` items, provide "Approve" and "Reject" buttons.
   - Clicking "Reject" must open a dialog forcing the admin to enter a `rejectionReason` and a `price`.
 
 ### 4.3. Finance Dashboard (`src/app/dashboard/finance/page.tsx`)
-- **Query:** Use a `collectionGroup` query to fetch all `clearanceItems` where `status == 'Rejected'` and `paymentStatus == 'Outstanding'`.
+- **Query:** Fetch all `clearance_items` where `status = 'Rejected'` and `paymentStatus = 'Outstanding'`.
 - **UI:** A data table with columns: Student, Item Name, Reason for Rejection, Amount Due, Payment Status.
-- **Actions:** For each item, provide a "Mark as Paid" button.
+- **Actions:** Provide a "Mark as Paid" button.
 
 ### 4.4. Security Dashboard (`src/app/dashboard/security/page.tsx`)
-- **Query:** Use a `collectionGroup` query to fetch all `clearanceItems` from all users.
-- **UI:** A read-only data table with columns: Student, Department, Item Name, Status, and Finance Status. No actions are available.
+- **Query:** Fetch all `clearance_items` from all users.
+- **UI:** A read-only data table with columns: Student, Department, Item Name, Status, and Finance Status.
