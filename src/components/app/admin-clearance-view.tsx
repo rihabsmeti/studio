@@ -4,8 +4,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, Info } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const staticClearanceItems = [
@@ -56,13 +55,6 @@ const AdminClearanceView = () => {
 
   return (
     <div className="p-4 md:p-8">
-       <Alert className='mb-8'>
-        <Info className="h-4 w-4" />
-        <AlertTitle>Admin Dashboard</AlertTitle>
-        <AlertDescription>
-          As an Admin, your role is to review items submitted by students. Approve items that have been successfully returned or cleared, and reject items that are missing or damaged.
-        </AlertDescription>
-      </Alert>
       <Card className="animate-fade-in-up">
         <CardHeader>
           <CardTitle className="font-headline text-3xl">Admin Clearance Dashboard</CardTitle>
