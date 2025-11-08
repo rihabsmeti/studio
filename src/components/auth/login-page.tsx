@@ -48,6 +48,17 @@ const LoginPage = () => {
       });
       return;
     }
+    
+    // Security check: Enforce email domain for staff roles
+    if (['Admin', 'Finance', 'Security'].includes(selectedRole) && !email.endsWith('@africanleadershipacademy.org')) {
+        toast({
+            title: 'Invalid Email',
+            description: `Staff roles (${selectedRole}) require an @africanleadershipacademy.org email address.`,
+            variant: 'destructive',
+        });
+        return;
+    }
+
 
     setIsLoggingIn(true);
     toast({
@@ -124,8 +135,8 @@ const LoginPage = () => {
     } catch (error: any) {
       console.error('Authentication failed:', error);
       let errorMessage = 'An unexpected error occurred.';
-      if (error.code === 'auth/wrong-password') {
-        errorMessage = 'The password you entered is incorrect. Please try again.';
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        errorMessage = 'The password or email you entered is incorrect. Please try again.';
       } else if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'This email is already in use by another account. Please try signing in.';
       } else {
