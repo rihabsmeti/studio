@@ -101,7 +101,25 @@ const LoginPage = () => {
 
       // Use the role from the database if it exists, otherwise use the selected role.
       const finalRole = userProfileSnap.exists() ? userProfileSnap.data().role : selectedRole;
-      router.push(`/dashboard?role=${finalRole}`);
+      
+      let redirectPath = `/dashboard?role=${finalRole}`;
+      switch (finalRole) {
+        case 'Admin':
+            redirectPath = `/dashboard/admin?role=${finalRole}`;
+            break;
+        case 'Finance':
+            redirectPath = `/dashboard/finance?role=${finalRole}`;
+            break;
+        case 'Security':
+            redirectPath = `/dashboard/security?role=${finalRole}`;
+            break;
+        case 'Student':
+            redirectPath = `/dashboard?role=${finalRole}`;
+            break;
+        default:
+            redirectPath = `/dashboard?role=${finalRole}`;
+      }
+      router.push(redirectPath);
 
     } catch (error: any) {
       console.error('Authentication failed:', error);
