@@ -61,39 +61,35 @@ const LoginPage = () => {
 
     setIsLoggingIn(true);
     toast({
-      title: 'Logging In...',
-      description: `Authenticating as ${selectedRole}.`,
+      title: 'Authenticating...',
+      description: `Please wait while we check your credentials.`,
     });
 
     try {
       let userCredential: UserCredential;
 
       try {
-        // First, always try to sign in.
+        // First, try to sign in.
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       } catch (error: any) {
         // If sign-in fails because the user doesn't exist, create a new account.
-        // This applies to ALL roles (Students and Staff).
         if (error.code === 'auth/user-not-found') {
           toast({
             title: 'Creating New Account',
-            description: 'First time login? We are setting up your account.',
+            description: 'First time here? We are setting up your account.',
           });
           userCredential = await createUserWithEmailAndPassword(auth, email, password);
         } else {
-          // For other errors (wrong password, email already in use by another provider, etc.),
-          // re-throw to be caught by the outer catch block which will display the error.
+          // For any other error (e.g., wrong password), re-throw it.
           throw error;
         }
       }
 
       const user = userCredential.user;
-
-      // Create user profile in Firestore if it doesn't exist.
-      // This is safe because Firestore rules will prevent a user from self-assigning a role they are not entitled to.
       const userProfileRef = doc(firestore, 'users', user.uid);
       const userProfileSnap = await getDoc(userProfileRef);
 
+      // Create a user profile in Firestore if one doesn't already exist.
       if (!userProfileSnap.exists()) {
         const userProfileData = {
           id: user.uid,
@@ -104,13 +100,12 @@ const LoginPage = () => {
           hallOfResidence: 'Not Assigned',
           gender: 'Not Specified',
         };
-        // Use non-blocking write.
+        // Use non-blocking write to create the profile.
         setDocumentNonBlocking(userProfileRef, userProfileData, { merge: true });
       }
 
-
       toast({
-        title: 'Login Successful!',
+        title: 'Success!',
         description: `Welcome! Redirecting to your dashboard.`,
       });
 
@@ -119,13 +114,10 @@ const LoginPage = () => {
     } catch (error: any) {
       console.error('Authentication failed:', error);
       let errorMessage = 'An unexpected error occurred.';
-      if (error.code === 'auth/user-not-found') {
-          // This case should theoretically not be hit anymore, but as a fallback.
-          errorMessage = 'This account does not exist. Please try again to create it.';
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         errorMessage = 'The email or password you entered is incorrect. Please try again.';
       } else if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'This email is already in use. Please try logging in or contact support.';
+        errorMessage = 'This email is already in use by another account. Please try signing in.';
       } else {
         errorMessage = error.message;
       }
@@ -173,7 +165,7 @@ const LoginPage = () => {
            <CardHeader className="items-center text-center">
             <CardTitle className="font-headline text-4xl drop-shadow-md">Welcome to ExitPass</CardTitle>
             <CardDescription className="text-white/80">
-              Please select your role to sign in.
+              Please select your role to sign in or create an account.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -235,7 +227,7 @@ const LoginPage = () => {
                         </div>
                     </div>
                   <Button type="submit" className="w-full bg-primary/80 hover:bg-primary text-white font-bold" disabled={isLoggingIn}>
-                    {isLoggingIn ? 'Logging in...' : 'Log In'}
+                    {isLoggingIn ? 'Authenticating...' : `Sign In / Sign Up as ${selectedRole}`}
                     <LogIn className="ml-2 h-5 w-5" />
                   </Button>
                 </form>
