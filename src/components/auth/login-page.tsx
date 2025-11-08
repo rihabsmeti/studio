@@ -49,16 +49,6 @@ const LoginPage = () => {
       return;
     }
 
-    const isStaffRole = ['Admin', 'Finance', 'Security'].includes(selectedRole);
-    if (isStaffRole && !email.endsWith('@africanleadershipacademy.org')) {
-        toast({
-            title: 'Access Denied',
-            description: `Only users with an @africanleadershipacademy.org email can log in as ${selectedRole}.`,
-            variant: 'destructive',
-        });
-        return;
-    }
-
     setIsLoggingIn(true);
     toast({
       title: 'Authenticating...',
@@ -73,7 +63,7 @@ const LoginPage = () => {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
       } catch (error: any) {
         // If sign-in fails because the user doesn't exist, create a new account.
-        if (error.code === 'auth/user-not-found') {
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
           toast({
             title: 'Creating New Account',
             description: 'First time here? We are setting up your account.',
@@ -109,13 +99,15 @@ const LoginPage = () => {
         description: `Welcome! Redirecting to your dashboard.`,
       });
 
-      router.push(`/dashboard?role=${selectedRole}`);
+      // Use the role from the database if it exists, otherwise use the selected role.
+      const finalRole = userProfileSnap.exists() ? userProfileSnap.data().role : selectedRole;
+      router.push(`/dashboard?role=${finalRole}`);
 
     } catch (error: any) {
       console.error('Authentication failed:', error);
       let errorMessage = 'An unexpected error occurred.';
-      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        errorMessage = 'The email or password you entered is incorrect. Please try again.';
+      if (error.code === 'auth/wrong-password') {
+        errorMessage = 'The password you entered is incorrect. Please try again.';
       } else if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'This email is already in use by another account. Please try signing in.';
       } else {
