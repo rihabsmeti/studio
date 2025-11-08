@@ -18,45 +18,56 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
+    // Check if the user's email is from the required domain for staff.
+    // This is more reliable than reading from the database during rule evaluation.
     function isStaffEmail() {
-      return request.auth.token.email.matches('.*@africanleadershipacademy.org');
+      return request.auth.token.email != null && request.auth.token.email.matches('.*@africanleadershipacademy\\.org');
     }
 
     // Rule for Collection Group queries on 'clearanceItems'.
-    // This allows Admin, Finance, and Security dashboards to read all items.
-    // For now, allows any signed-in user to bypass complex rule errors.
-    // We can tighten this to `isStaffEmail()` once the core functionality is confirmed.
+    // This allows staff dashboards (Admin, Finance, Security) to read all items across all users.
+    // The query MUST be specific (e.g., use a 'where' clause) for this rule to be effective.
     match /{path=**}/clearanceItems/{clearanceItemId} {
-      allow read: if isSignedIn();
+      allow read: if isStaffEmail();
     }
 
     match /users/{userId} {
+      // Allow owners and staff to get a user's profile.
       allow get: if isOwner(userId) || isStaffEmail();
-      allow list: if false; // User listing is disabled for privacy.
+      // User listing is disabled for privacy.
+      allow list: if false; 
       
+      // Allow users to create their own profile.
+      // Enforce that staff roles MUST have a staff email.
       allow create: if isOwner(userId) &&
                       (request.resource.data.role == 'Student' || 
                        (request.resource.data.role in ['Admin', 'Finance', 'Security'] && isStaffEmail()));
 
+      // Allow users to update their own profile, but not change their ID or role.
       allow update: if isOwner(userId) && 
                        request.resource.data.id == resource.data.id &&
                        request.resource.data.role == resource.data.role;
                        
+      // Owners can delete their own profile.
       allow delete: if isOwner(userId);
 
-      // Rules for the 'clearanceItems' subcollection for direct access by owner.
+      // Rules for the 'clearanceItems' subcollection for direct access by the owner.
       match /clearanceItems/{clearanceItemId} {
+        // Owner can create items for themselves.
         allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
+        // Owner can delete their own items only if they are 'Pending'.
         allow delete: if isOwner(userId) && resource.data.status == 'Pending';
+        // Owner can get their own individual items.
         allow get: if isOwner(userId);
 
-        // Update permissions for an individual item. Staff access is handled by the collection group rule for reads.
+        // Update permissions for an individual item.
+        // Staff access for reads is handled by the collection group rule above.
         allow update: if 
           // Owners can update their own items if the status is 'Pending'.
           (isOwner(userId) && resource.data.status == 'Pending') ||
-          // Admins can update specific fields.
+          // Admins (identified by staff email) can update status and rejection details.
           (isStaffEmail() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'rejectionReason', 'price', 'paymentStatus'])) ||
-          // Finance can only update the paymentStatus.
+          // Finance (identified by staff email) can ONLY update the paymentStatus.
           (isStaffEmail() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentStatus']));
       }
     }

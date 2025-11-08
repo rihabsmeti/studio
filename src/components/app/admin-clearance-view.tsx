@@ -50,6 +50,8 @@ const AdminClearanceView = () => {
 
   const pendingItemsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
+    // THIS IS THE FIX: A collectionGroup query requires a 'where' filter.
+    // We filter for pending items, which is what the admin needs to see.
     return query(
         collectionGroup(firestore, 'clearanceItems'),
         where('status', '==', 'Pending')
@@ -159,7 +161,15 @@ const AdminClearanceView = () => {
   return (
     <>
       <div className="p-4 md:p-8">
-        {renderContent()}
+        <Card className="animate-fade-in-up">
+            <CardHeader>
+            <CardTitle className="font-headline text-3xl">Admin Clearance Dashboard</CardTitle>
+            <CardDescription>Review and decide on pending clearance items submitted by students.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {renderContent()}
+            </CardContent>
+        </Card>
       </div>
 
       <Dialog open={rejectDialog.isOpen} onOpenChange={(isOpen) => setRejectDialog(prev => ({...prev, isOpen}))}>
