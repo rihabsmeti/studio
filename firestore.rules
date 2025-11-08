@@ -61,10 +61,10 @@ service cloud.firestore {
 
       // Rules for the 'clearanceItems' subcollection within a specific user's path.
       match /clearanceItems/{clearanceItemId} {
-        // Students can create, read, and delete their own items.
+        // Students can create, and delete their own items. `get` is also allowed but covered by the collection group `read`.
         allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
         allow delete: if isOwner(userId) && resource.data.status == 'Pending';
-        allow get: if isOwner(userId); // `read` for the collection group query above handles staff access.
+        allow get: if isOwner(userId); 
 
         // Update permissions are role-based.
         allow update: if 
