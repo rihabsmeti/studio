@@ -1,18 +1,16 @@
+
 'use client';
 
 import React, { useState } from 'react';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirestore, useMemoFirebase } from '@/firebase/provider';
 import { collectionGroup, query, where, doc } from 'firebase/firestore';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Info, Loader2, XCircle } from 'lucide-react';
+import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDoc } from '@/firebase';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
@@ -113,18 +111,12 @@ const AdminClearanceView = () => {
 
   if (itemsError) {
     return (
-        <div className="p-4 md:p-8">
-            <Card className="border-destructive bg-destructive/10">
-                <CardHeader>
-                    <CardTitle className="text-destructive">Error Loading Data</CardTitle>
-                    <CardDescription className="text-destructive/80">
-                        There was a problem fetching clearance items. This may be due to security rules.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="font-mono text-sm text-destructive/70">{itemsError.message}</p>
-                </CardContent>
-            </Card>
+        <div className="p-8">
+            <div className="border-l-4 border-destructive bg-destructive/10 p-4 rounded-md">
+                <h3 className="font-bold text-destructive">Error Loading Data</h3>
+                <p className="text-destructive/80">There was a problem fetching clearance items. This may be due to security rules.</p>
+                <p className="mt-2 font-mono text-sm text-destructive/70">{itemsError.message}</p>
+            </div>
         </div>
     );
   }
@@ -132,20 +124,6 @@ const AdminClearanceView = () => {
   return (
     <>
       <div className="p-4 md:p-8">
-        <Alert className='mb-8'>
-            <Info className="h-4 w-4" />
-            <AlertTitle>Admin Dashboard</AlertTitle>
-            <AlertDescription>
-              Review all clearance items with a 'Pending' status. You can approve them directly or reject them with a reason and an associated cost.
-            </AlertDescription>
-        </Alert>
-
-        <Card className="animate-fade-in-up">
-          <CardHeader>
-            <CardTitle className="font-headline text-3xl">Admin Clearance Dashboard</CardTitle>
-            <CardDescription>Review and manage all pending student clearance submissions.</CardDescription>
-          </CardHeader>
-          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -170,8 +148,6 @@ const AdminClearanceView = () => {
                 )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
       </div>
 
       <Dialog open={rejectDialog.isOpen} onOpenChange={(isOpen) => setRejectDialog(prev => ({...prev, isOpen}))}>
@@ -255,3 +231,5 @@ const AdminItemRow = ({ item, onApprove, onDeny }: { item: ClearanceItem; onAppr
 }
 
 export default AdminClearanceView;
+
+    
