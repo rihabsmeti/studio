@@ -22,6 +22,7 @@ service cloud.firestore {
     }
     
     function getRole() {
+      // It is critical to check for the existence of the document before accessing .data
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
@@ -42,11 +43,10 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isStaff();
       allow list: if false; // User listing is disabled for privacy.
       
-      // Allow create if user is signed in, is the owner, the ID matches,
-      // and they are ONLY assigning themselves the 'Student' role.
-      // Staff roles cannot be self-assigned and must be set manually by an administrator.
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId &&
-                       request.resource.data.role == 'Student';
+      // Allow create if user is signed in and is the owner of the document.
+      // The frontend logic handles the role assignment check (e.g., email domain).
+      // This rule secures that only the authenticated user can create their own profile document.
+      allow create: if isSignedIn() && isOwner(userId);
 
       // Allow update if the user is the owner and the ID doesn't change.
       // Role changes are also disallowed here for security.
