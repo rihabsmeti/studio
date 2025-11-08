@@ -18,26 +18,24 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
-    function getRole() {
-      // It is critical to check for the existence of the document before accessing .data
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-    }
-
-    function isStaff() {
-      let role = getRole();
-      return role in ['Admin', 'Security', 'Finance'];
-    }
-
-    function isFinance() {
-      return getRole() == 'Finance';
+    function getRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
 
     function isAdmin() {
-      return getRole() == 'Admin';
+      return getRole(request.auth.uid) == 'Admin';
     }
-    
+
+    function isFinance() {
+      return getRole(request.auth.uid) == 'Finance';
+    }
+
+    function isStaff() {
+        return getRole(request.auth.uid) in ['Admin', 'Finance', 'Security'];
+    }
+
     // Rule for Collection Group queries on 'clearanceItems'.
-    // This is essential for Admin, Finance, and Security dashboards.
+    // This allows Admin, Finance, and Security dashboards to read all items.
     match /{path=**}/clearanceItems/{clearanceItemId} {
       allow read: if isStaff();
     }
@@ -59,12 +57,11 @@ service cloud.firestore {
                        
       allow delete: if isOwner(userId);
 
-      // Rules for the 'clearanceItems' subcollection within a specific user's path.
+      // Rules for the 'clearanceItems' subcollection for direct access by owner.
       match /clearanceItems/{clearanceItemId} {
-        // Students can create, and delete their own items. `get` is also allowed but covered by the collection group `read`.
         allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
         allow delete: if isOwner(userId) && resource.data.status == 'Pending';
-        allow get: if isOwner(userId); 
+        allow get: if isOwner(userId);
 
         // Update permissions are role-based.
         allow update: if 

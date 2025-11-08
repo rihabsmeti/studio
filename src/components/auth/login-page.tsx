@@ -90,19 +90,23 @@ const LoginPage = () => {
       const userProfileRef = doc(firestore, 'users', user.uid);
       const userProfileSnap = await getDoc(userProfileRef);
 
+      // Determine the final role
+      const finalRole = userProfileSnap.exists() ? userProfileSnap.data().role : selectedRole;
+
       // Create a user profile in Firestore if one doesn't already exist.
+      // This is important for new sign-ups.
       if (!userProfileSnap.exists()) {
         const userProfileData = {
           id: user.uid,
           email: user.email,
-          role: selectedRole,
+          role: finalRole,
           fullName: user.displayName || 'New User',
           studentId: `SID-${user.uid.substring(0, 8).toUpperCase()}`,
           hallOfResidence: 'Not Assigned',
           gender: 'Not Specified',
         };
-        // Use non-blocking write to create the profile.
-        setDocumentNonBlocking(userProfileRef, userProfileData, { merge: true });
+        // Use a blocking write here to ensure profile exists before redirect
+        await setDoc(userProfileRef, userProfileData, { merge: true });
       }
 
       toast({
@@ -110,9 +114,7 @@ const LoginPage = () => {
         description: `Welcome! Redirecting to your dashboard.`,
       });
 
-      // Use the role from the database if it exists, otherwise use the selected role.
-      const finalRole = userProfileSnap.exists() ? userProfileSnap.data().role : selectedRole;
-      
+      // Redirect based on the definitive role
       let redirectPath = `/dashboard?role=${finalRole}`;
       switch (finalRole) {
         case 'Admin':
@@ -125,10 +127,9 @@ const LoginPage = () => {
             redirectPath = `/dashboard/security?role=${finalRole}`;
             break;
         case 'Student':
-            redirectPath = `/dashboard?role=${finalRole}`;
-            break;
         default:
             redirectPath = `/dashboard?role=${finalRole}`;
+            break;
       }
       router.push(redirectPath);
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -15,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 
 type ClearanceItem = {
   id: string;
@@ -100,54 +100,66 @@ const AdminClearanceView = () => {
     setRejectDialog({ isOpen: false, item: null, reason: '', price: '' });
   };
 
-  if (isLoadingItems) {
-    return (
-      <div className="flex h-full items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-4 text-muted-foreground">Loading pending items...</p>
-      </div>
-    );
-  }
-
-  if (itemsError) {
-    return (
-        <div className="p-8">
-            <div className="border-l-4 border-destructive bg-destructive/10 p-4 rounded-md">
-                <h3 className="font-bold text-destructive">Error Loading Data</h3>
-                <p className="text-destructive/80">There was a problem fetching clearance items. This may be due to security rules.</p>
-                <p className="mt-2 font-mono text-sm text-destructive/70">{itemsError.message}</p>
-            </div>
+  const renderContent = () => {
+    if (isLoadingItems) {
+      return (
+        <div className="flex h-full items-center justify-center p-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-4 text-muted-foreground">Loading pending items...</p>
         </div>
+      );
+    }
+  
+    if (itemsError) {
+      return (
+          <div className="p-8">
+              <Card className="border-l-4 border-destructive bg-destructive/10">
+                  <CardHeader>
+                      <CardTitle className="text-destructive">Error Loading Data</CardTitle>
+                      <CardDescription className="text-destructive/80">
+                          There was a problem fetching clearance items. This may be due to security rules.
+                      </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      <p className="mt-2 font-mono text-sm text-destructive/70">{itemsError.message}</p>
+                  </CardContent>
+              </Card>
+          </div>
+      );
+    }
+
+    return (
+        <Table>
+            <TableHeader>
+            <TableRow>
+                <TableHead>Student</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Item Name</TableHead>
+                <TableHead>Notes</TableHead>
+                <TableHead className="text-right">Decision</TableHead>
+            </TableRow>
+            </TableHeader>
+            <TableBody>
+            {clearanceItems && clearanceItems.length > 0 ? (
+                clearanceItems.map((item) => (
+                <AdminItemRow key={item.id} item={item} onApprove={handleApprove} onDeny={openRejectDialog} />
+                ))
+            ) : (
+                <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center">
+                    No pending items to review.
+                </TableCell>
+                </TableRow>
+            )}
+            </TableBody>
+        </Table>
     );
   }
 
   return (
     <>
       <div className="p-4 md:p-8">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Item Name</TableHead>
-                   <TableHead>Notes</TableHead>
-                  <TableHead className="text-right">Decision</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {clearanceItems && clearanceItems.length > 0 ? (
-                  clearanceItems.map((item) => (
-                    <AdminItemRow key={item.id} item={item} onApprove={handleApprove} onDeny={openRejectDialog} />
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      No pending items to review.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+        {renderContent()}
       </div>
 
       <Dialog open={rejectDialog.isOpen} onOpenChange={(isOpen) => setRejectDialog(prev => ({...prev, isOpen}))}>
@@ -231,5 +243,3 @@ const AdminItemRow = ({ item, onApprove, onDeny }: { item: ClearanceItem; onAppr
 }
 
 export default AdminClearanceView;
-
-    
