@@ -12,8 +12,8 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, UserCredential } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
@@ -49,8 +49,8 @@ const LoginPage = () => {
       return;
     }
 
-    const adminRoles = ['Admin', 'Finance', 'Security'];
-    if (adminRoles.includes(selectedRole) && !email.endsWith('@africanleadershipacademy.org')) {
+    const isStaffRole = ['Admin', 'Finance', 'Security'].includes(selectedRole);
+    if (isStaffRole && !email.endsWith('@africanleadershipacademy.org')) {
         toast({
             title: 'Access Denied',
             description: `Only users with an @africanleadershipacademy.org email can log in as ${selectedRole}.`,
@@ -66,40 +66,53 @@ const LoginPage = () => {
     });
 
     try {
-      let userCredential;
-      try {
-        // First, try to sign in.
+      let userCredential: UserCredential;
+
+      // --- SECURE AUTHENTICATION LOGIC ---
+      if (isStaffRole) {
+        // Staff CANNOT self-register. They must already exist.
         userCredential = await signInWithEmailAndPassword(auth, email, password);
-      } catch (error: any) {
-        // If sign-in fails because the user doesn't exist, create a new user.
-        if (error.code === 'auth/user-not-found') {
-          toast({
-            title: 'Creating New Account',
-            description: 'First time login? We are setting up your account.',
-          });
-          userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        } else {
-          // For other errors (wrong password, etc.), re-throw to be caught by the outer catch.
-          throw error;
+      } else {
+        // Students CAN self-register.
+        try {
+          // First, try to sign in.
+          userCredential = await signInWithEmailAndPassword(auth, email, password);
+        } catch (error: any) {
+          // If sign-in fails because the user doesn't exist, create a new student account.
+          if (error.code === 'auth/user-not-found') {
+            toast({
+              title: 'Creating New Account',
+              description: 'First time login? We are setting up your account.',
+            });
+            userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          } else {
+            // For other errors (wrong password, etc.), re-throw to be caught by the outer catch.
+            throw error;
+          }
         }
       }
+      // --- END SECURE AUTHENTICATION LOGIC ---
 
       const user = userCredential.user;
 
       // Create or update user profile in Firestore.
       const userProfileRef = doc(firestore, 'users', user.uid);
-      const userProfileData = {
-        id: user.uid,
-        email: user.email,
-        role: selectedRole,
-        fullName: user.displayName || 'New User',
-        studentId: `SID-${user.uid.substring(0, 8).toUpperCase()}`,
-        hallOfResidence: 'Not Assigned',
-        gender: 'Not Specified',
-      };
-      
-      // We use a non-blocking write operation here.
-      setDocumentNonBlocking(userProfileRef, userProfileData, { merge: true });
+      const userProfileSnap = await getDoc(userProfileRef);
+
+      if (!userProfileSnap.exists()) {
+        const userProfileData = {
+          id: user.uid,
+          email: user.email,
+          role: selectedRole,
+          fullName: user.displayName || 'New User',
+          studentId: `SID-${user.uid.substring(0, 8).toUpperCase()}`,
+          hallOfResidence: 'Not Assigned',
+          gender: 'Not Specified',
+        };
+        // Use non-blocking write, but only for profile creation.
+        setDocumentNonBlocking(userProfileRef, userProfileData, { merge: true });
+      }
+
 
       toast({
         title: 'Login Successful!',
@@ -110,12 +123,15 @@ const LoginPage = () => {
 
     } catch (error: any) {
       console.error('Authentication failed:', error);
-      let errorMessage = error.message || 'An unexpected error occurred.';
-      // Provide a more user-friendly message for common errors
-      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      let errorMessage = 'An unexpected error occurred.';
+      if (error.code === 'auth/user-not-found') {
+          errorMessage = 'This account does not exist. Please contact an administrator to get access.';
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         errorMessage = 'The email or password you entered is incorrect. Please try again.';
       } else if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'This email is already associated with an account. Please try logging in.';
+      } else {
+        errorMessage = error.message;
       }
       
       toast({
@@ -123,6 +139,7 @@ const LoginPage = () => {
         description: errorMessage,
         variant: 'destructive',
       });
+    } finally {
       setIsLoggingIn(false);
     }
   };
@@ -201,6 +218,7 @@ const LoginPage = () => {
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="bg-white/10 border-white/20 pl-10 text-white placeholder:text-white/50"
                                 disabled={isLoggingIn}
+                                required
                             />
                         </div>
                     </div>
@@ -216,6 +234,7 @@ const LoginPage = () => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="bg-white/10 border-white/20 pl-10 text-white placeholder:text-white/50"
                                 disabled={isLoggingIn}
+                                required
                             />
                         </div>
                     </div>
