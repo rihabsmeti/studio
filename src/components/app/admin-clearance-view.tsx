@@ -1,34 +1,33 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { useFirestore, useMemoFirebase } from '@/firebase/provider';
-import { collectionGroup, query, where, doc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Loader2, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useDoc } from '@/firebase';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 
+// Define the types for our static data
 type ClearanceItem = {
   id: string;
   name: string;
   department: string;
   status: 'Pending' | 'Approved' | 'Rejected';
   notes: string;
-  userProfileId: string;
+  studentName: string;
+  studentEmail: string;
 };
 
-type UserProfile = {
-  fullName: string;
-  email: string;
-};
+// Create a static array of mock data
+const staticClearanceItems: ClearanceItem[] = [
+  { id: '1', name: 'Physics Textbook', department: 'Academics', status: 'Pending', notes: 'Forgot to return after finals.', studentName: 'John Doe', studentEmail: 'john.doe@example.com' },
+  { id: '2', name: 'Library Book: "The Great Gatsby"', department: 'Library', status: 'Pending', notes: '', studentName: 'Jane Smith', studentEmail: 'jane.smith@example.com' },
+  { id: '3', name: 'Basketball', department: 'Sports', status: 'Pending', notes: 'Left it in the gym locker.', studentName: 'Mike Johnson', studentEmail: 'mike.j@example.com' },
+];
 
 type RejectDialogState = {
   isOpen: boolean;
@@ -38,8 +37,8 @@ type RejectDialogState = {
 };
 
 const AdminClearanceView = () => {
-  const firestore = useFirestore();
   const { toast } = useToast();
+  const [items, setItems] = useState(staticClearanceItems);
 
   const [rejectDialog, setRejectDialog] = useState<RejectDialogState>({
     isOpen: false,
@@ -48,27 +47,14 @@ const AdminClearanceView = () => {
     price: '',
   });
 
-  const pendingItemsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    // THIS IS THE FIX: A collectionGroup query requires a 'where' filter.
-    // We filter for pending items, which is what the admin needs to see.
-    return query(
-        collectionGroup(firestore, 'clearanceItems'),
-        where('status', '==', 'Pending')
-    );
-  }, [firestore]);
-
-  const { data: clearanceItems, isLoading: isLoadingItems, error: itemsError } = useCollection<ClearanceItem>(pendingItemsQuery);
-
   const handleApprove = (item: ClearanceItem) => {
-    if (!firestore) return;
-
-    const itemRef = doc(firestore, `users/${item.userProfileId}/clearanceItems`, item.id);
-    updateDocumentNonBlocking(itemRef, { status: 'Approved' });
+    // Simulate the action with a toast
     toast({
-        title: "Item Approved",
+        title: "Item Approved (Simulated)",
         description: `"${item.name}" has been approved.`,
     });
+    // Optional: Update local state to reflect the change visually
+    setItems(prevItems => prevItems.filter(i => i.id !== item.id));
   };
 
   const openRejectDialog = (item: ClearanceItem) => {
@@ -77,60 +63,28 @@ const AdminClearanceView = () => {
 
   const handleConfirmReject = () => {
     const { item, reason, price } = rejectDialog;
-    if (!firestore || !item) return;
+    if (!item) return;
 
-    const priceValue = parseFloat(price);
-    if (!reason || isNaN(priceValue) || priceValue < 0) {
+    if (!reason || !price) {
         toast({ title: "Invalid Input", description: "Please provide a valid reason and price.", variant: "destructive" });
         return;
     }
-
-    const itemRef = doc(firestore, `users/${item.userProfileId}/clearanceItems`, item.id);
-    updateDocumentNonBlocking(itemRef, {
-        status: 'Rejected',
-        rejectionReason: reason,
-        price: priceValue,
-        paymentStatus: 'Outstanding'
-    });
-
+    
+    // Simulate the action with a toast
     toast({
-        title: "Item Rejected",
+        title: "Item Rejected (Simulated)",
         description: `"${item.name}" has been rejected.`,
         variant: "destructive"
     });
-
+    
+    // Optional: Update local state
+    setItems(prevItems => prevItems.filter(i => i.id !== item.id));
     setRejectDialog({ isOpen: false, item: null, reason: '', price: '' });
   };
 
-  const renderContent = () => {
-    if (isLoadingItems) {
-      return (
-        <div className="flex h-full items-center justify-center p-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-4 text-muted-foreground">Loading pending items...</p>
-        </div>
-      );
-    }
-  
-    if (itemsError) {
-      return (
-          <div className="p-8">
-              <Card className="border-l-4 border-destructive bg-destructive/10">
-                  <CardHeader>
-                      <CardTitle className="text-destructive">Error Loading Data</CardTitle>
-                      <CardDescription className="text-destructive/80">
-                          There was a problem fetching clearance items. This may be due to security rules.
-                      </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                      <p className="mt-2 font-mono text-sm text-destructive/70">{itemsError.message}</p>
-                  </CardContent>
-              </Card>
-          </div>
-      );
-    }
-
-    return (
+  return (
+    <>
+      <div className="p-4 md:p-8">
         <Table>
             <TableHeader>
             <TableRow>
@@ -142,8 +96,8 @@ const AdminClearanceView = () => {
             </TableRow>
             </TableHeader>
             <TableBody>
-            {clearanceItems && clearanceItems.length > 0 ? (
-                clearanceItems.map((item) => (
+            {items && items.length > 0 ? (
+                items.map((item) => (
                 <AdminItemRow key={item.id} item={item} onApprove={handleApprove} onDeny={openRejectDialog} />
                 ))
             ) : (
@@ -155,21 +109,6 @@ const AdminClearanceView = () => {
             )}
             </TableBody>
         </Table>
-    );
-  }
-
-  return (
-    <>
-      <div className="p-4 md:p-8">
-        <Card className="animate-fade-in-up">
-            <CardHeader>
-            <CardTitle className="font-headline text-3xl">Admin Clearance Dashboard</CardTitle>
-            <CardDescription>Review and decide on pending clearance items submitted by students.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                {renderContent()}
-            </CardContent>
-        </Card>
       </div>
 
       <Dialog open={rejectDialog.isOpen} onOpenChange={(isOpen) => setRejectDialog(prev => ({...prev, isOpen}))}>
@@ -202,30 +141,11 @@ const AdminClearanceView = () => {
 
 
 const AdminItemRow = ({ item, onApprove, onDeny }: { item: ClearanceItem; onApprove: (item: ClearanceItem) => void; onDeny: (item: ClearanceItem) => void; }) => {
-    const firestore = useFirestore();
-
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !item.userProfileId) return null;
-        return doc(firestore, 'users', item.userProfileId);
-    }, [firestore, item.userProfileId]);
-
-    const { data: userProfile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileRef);
-
-    if (isLoadingProfile) {
-        return (
-            <TableRow>
-                <TableCell colSpan={5} className="text-center">
-                    <Loader2 className="mx-auto h-4 w-4 animate-spin text-primary" />
-                </TableCell>
-            </TableRow>
-        )
-    }
-
     return (
         <TableRow>
             <TableCell>
-                <div className='font-medium'>{userProfile?.fullName || 'N/A'}</div>
-                <div className='text-xs text-muted-foreground'>{userProfile?.email || 'N/A'}</div>
+                <div className='font-medium'>{item.studentName}</div>
+                <div className='text-xs text-muted-foreground'>{item.studentEmail}</div>
             </TableCell>
             <TableCell>{item.department}</TableCell>
             <TableCell>{item.name}</TableCell>
