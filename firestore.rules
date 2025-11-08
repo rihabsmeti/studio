@@ -43,9 +43,12 @@ service cloud.firestore {
       allow list: if false; // User listing is disabled for privacy.
       
       // Allow create if user is signed in, is the owner, and the ID matches.
-      // Prevent users from assigning themselves a staff role unless they have a specific email domain.
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId
-                  && (request.resource.data.role == 'Student' || request.resource.data.email.matches('.*@africanleadershipacademy.org'));
+      // A user can create a 'Student' profile with any email.
+      // A user can create a staff profile ('Admin', 'Security', 'Finance') only if their email is from the required domain.
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId && (
+                    request.resource.data.role == 'Student' || 
+                    (request.resource.data.role in ['Admin', 'Security', 'Finance'] && request.resource.data.email.matches('.*@africanleadershipacademy.org'))
+                  );
 
       // Allow update if the user is the owner and the ID doesn't change.
       allow update: if isOwner(userId) && request.resource.data.id == resource.data.id;
