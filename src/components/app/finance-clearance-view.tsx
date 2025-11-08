@@ -1,90 +1,48 @@
 'use client';
 
-import React from 'react';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { useFirestore, useMemoFirebase } from '@/firebase/provider';
-import { collectionGroup, query, where, doc } from 'firebase/firestore';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Loader2, Info } from 'lucide-react';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { DollarSign, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useDoc } from '@/firebase';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
-type ClearanceItem = {
+// Define the type for our static data
+type FinanceItem = {
   id: string;
   name: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
-  notes: string;
-  userProfileId: string;
-  department: string;
-  price?: number;
-  rejectionReason?: string;
-  paymentStatus?: 'Outstanding' | 'Paid';
+  rejectionReason: string;
+  price: number;
+  paymentStatus: 'Outstanding' | 'Paid';
+  studentName: string;
+  studentEmail: string;
 };
 
-type UserProfile = {
-  fullName: string;
-  email: string;
-};
+// Create a static array of mock data
+const staticFinanceItems: FinanceItem[] = [
+  { id: '1', studentName: 'Alice Wonderland', studentEmail: 'alice.w@example.com', name: 'Damaged Chemistry Beaker', rejectionReason: 'Cracked during experiment', price: 25.50, paymentStatus: 'Outstanding' },
+  { id: '2', studentName: 'Bob Builder', studentEmail: 'bob.b@example.com', name: 'Unreturned Library Book', rejectionReason: 'Lost "The Art of Code"', price: 45.00, paymentStatus: 'Outstanding' },
+  { id: '3', studentName: 'Charlie Brown', studentEmail: 'charlie.b@example.com', name: 'Lost Dorm Key', rejectionReason: 'Key replacement fee', price: 75.00, paymentStatus: 'Outstanding' },
+];
+
 
 const FinanceClearanceView = () => {
-  const firestore = useFirestore();
   const { toast } = useToast();
+  const [items, setItems] = useState(staticFinanceItems);
 
-  const financeItemsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-        collectionGroup(firestore, 'clearanceItems'), 
-        where('status', '==', 'Rejected'),
-        where('paymentStatus', '==', 'Outstanding')
-    );
-  }, [firestore]);
-
-  const { data: clearanceItems, isLoading: isLoadingItems, error: itemsError } = useCollection<ClearanceItem>(financeItemsQuery);
-
-  const handleMarkAsPaid = (item: ClearanceItem) => {
-    if (!firestore) return;
-
-    const itemRef = doc(firestore, `users/${item.userProfileId}/clearanceItems`, item.id);
-    updateDocumentNonBlocking(itemRef, { paymentStatus: 'Paid' });
-
+  const handleMarkAsPaid = (item: FinanceItem) => {
+    // Simulate the action with a toast
     toast({
-        title: "Payment Recorded",
-        description: `Payment for ${item.name} from ${item.userProfileId} has been recorded.`
+        title: "Payment Recorded (Simulated)",
+        description: `Payment for ${item.name} from ${item.studentName} has been recorded.`
     });
+    
+    // Optional: Update local state to reflect the change visually
+    setItems(prevItems => prevItems.map(i => i.id === item.id ? {...i, paymentStatus: 'Paid'} : i));
   };
 
-  if (isLoadingItems) {
-    return (
-      <div className="flex h-full items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-4 text-muted-foreground">Loading financial records...</p>
-      </div>
-    );
-  }
-
-    if (itemsError) {
-    return (
-        <div className="p-4 md:p-8">
-            <Card className="border-destructive bg-destructive/10">
-                <CardHeader>
-                    <CardTitle className="text-destructive">Error Loading Data</CardTitle>
-                    <CardDescription className="text-destructive/80">
-                        There was a problem fetching the clearance items from the database.
-                        This is likely due to Firestore Security Rules.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="font-mono text-sm text-destructive/70">{itemsError.message}</p>
-                </CardContent>
-            </Card>
-        </div>
-    );
-  }
 
   return (
     <div className="p-4 md:p-8">
@@ -114,8 +72,8 @@ const FinanceClearanceView = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clearanceItems && clearanceItems.length > 0 ? (
-                clearanceItems.map((item) => (
+              {items && items.length > 0 ? (
+                items.map((item) => (
                   <FinanceItemRow key={item.id} item={item} onMarkAsPaid={handleMarkAsPaid} />
                 ))
               ) : (
@@ -133,36 +91,18 @@ const FinanceClearanceView = () => {
   );
 };
 
-const FinanceItemRow = ({ item, onMarkAsPaid }: { item: ClearanceItem; onMarkAsPaid: (item: ClearanceItem) => void }) => {
-    const firestore = useFirestore();
+const FinanceItemRow = ({ item, onMarkAsPaid }: { item: FinanceItem; onMarkAsPaid: (item: FinanceItem) => void }) => {
     
-    const userProfileRef = useMemoFirebase(() => {
-        if (!firestore || !item.userProfileId) return null;
-        return doc(firestore, 'users', item.userProfileId);
-    }, [firestore, item.userProfileId]);
-
-    const { data: userProfile, isLoading: isLoadingProfile } = useDoc<UserProfile>(userProfileRef);
-
-    if (isLoadingProfile) {
-        return (
-            <TableRow>
-                <TableCell colSpan={6} className="text-center">
-                    <Loader2 className="mx-auto h-4 w-4 animate-spin text-primary" />
-                </TableCell>
-            </TableRow>
-        )
-    }
-
     return (
         <TableRow>
             <TableCell>
-                <div className='font-medium'>{userProfile?.fullName || 'N/A'}</div>
-                <div className='text-xs text-muted-foreground'>{userProfile?.email || 'N/A'}</div>
+                <div className='font-medium'>{item.studentName}</div>
+                <div className='text-xs text-muted-foreground'>{item.studentEmail}</div>
             </TableCell>
             <TableCell>{item.name}</TableCell>
-            <TableCell className='italic text-muted-foreground'>{item.rejectionReason || "No reason provided"}</TableCell>
+            <TableCell className='italic text-muted-foreground'>{item.rejectionReason}</TableCell>
             <TableCell className="font-medium">
-                ${item.price?.toFixed(2) || '0.00'}
+                ${item.price.toFixed(2)}
             </TableCell>
             <TableCell>
               <Badge variant={item.paymentStatus === 'Paid' ? 'default' : 'destructive'} className={item.paymentStatus === 'Paid' ? 'bg-green-600': ''}>
