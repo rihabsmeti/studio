@@ -68,34 +68,29 @@ const LoginPage = () => {
     try {
       let userCredential: UserCredential;
 
-      // --- SECURE AUTHENTICATION LOGIC ---
-      if (isStaffRole) {
-        // Staff CANNOT self-register. They must already exist.
+      try {
+        // First, always try to sign in.
         userCredential = await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        // Students CAN self-register.
-        try {
-          // First, try to sign in.
-          userCredential = await signInWithEmailAndPassword(auth, email, password);
-        } catch (error: any) {
-          // If sign-in fails because the user doesn't exist, create a new student account.
-          if (error.code === 'auth/user-not-found') {
-            toast({
-              title: 'Creating New Account',
-              description: 'First time login? We are setting up your account.',
-            });
-            userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          } else {
-            // For other errors (wrong password, etc.), re-throw to be caught by the outer catch.
-            throw error;
-          }
+      } catch (error: any) {
+        // If sign-in fails because the user doesn't exist, create a new account.
+        // This applies to ALL roles (Students and Staff).
+        if (error.code === 'auth/user-not-found') {
+          toast({
+            title: 'Creating New Account',
+            description: 'First time login? We are setting up your account.',
+          });
+          userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        } else {
+          // For other errors (wrong password, email already in use by another provider, etc.),
+          // re-throw to be caught by the outer catch block which will display the error.
+          throw error;
         }
       }
-      // --- END SECURE AUTHENTICATION LOGIC ---
 
       const user = userCredential.user;
 
-      // Create or update user profile in Firestore.
+      // Create user profile in Firestore if it doesn't exist.
+      // This is safe because Firestore rules will prevent a user from self-assigning a role they are not entitled to.
       const userProfileRef = doc(firestore, 'users', user.uid);
       const userProfileSnap = await getDoc(userProfileRef);
 
@@ -109,7 +104,7 @@ const LoginPage = () => {
           hallOfResidence: 'Not Assigned',
           gender: 'Not Specified',
         };
-        // Use non-blocking write, but only for profile creation.
+        // Use non-blocking write.
         setDocumentNonBlocking(userProfileRef, userProfileData, { merge: true });
       }
 
@@ -125,11 +120,12 @@ const LoginPage = () => {
       console.error('Authentication failed:', error);
       let errorMessage = 'An unexpected error occurred.';
       if (error.code === 'auth/user-not-found') {
-          errorMessage = 'This account does not exist. Please contact an administrator to get access.';
+          // This case should theoretically not be hit anymore, but as a fallback.
+          errorMessage = 'This account does not exist. Please try again to create it.';
       } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         errorMessage = 'The email or password you entered is incorrect. Please try again.';
       } else if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'This email is already associated with an account. Please try logging in.';
+        errorMessage = 'This email is already in use. Please try logging in or contact support.';
       } else {
         errorMessage = error.message;
       }
