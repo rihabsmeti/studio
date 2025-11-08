@@ -44,12 +44,12 @@ service cloud.firestore {
       allow list: if false; // User listing is disabled for privacy.
       
       // Allow create if user is signed in and is the owner of the document.
-      // The frontend logic handles the role assignment check (e.g., email domain).
+      // The front-end logic handles the role assignment check (e.g., email domain).
       // This rule secures that only the authenticated user can create their own profile document.
       allow create: if isSignedIn() && isOwner(userId);
 
-      // Allow update if the user is the owner and the ID doesn't change.
-      // Role changes are also disallowed here for security.
+      // Allow update if the user is the owner and the ID and role don't change.
+      // Role changes are disallowed here for security.
       allow update: if isOwner(userId) && request.resource.data.id == resource.data.id &&
                        request.resource.data.role == resource.data.role;
       allow delete: if isOwner(userId);
