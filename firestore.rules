@@ -56,14 +56,11 @@ service cloud.firestore {
     }
     
     match /users/{userId}/clearanceItems/{clearanceItemId} {
-      // Students can create and delete their own items, and list them.
+      // Students can create and delete their own items, and list their own items.
       allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
       allow delete: if isOwner(userId) && resource.data.status == 'Pending';
-      // ANY user can list THEIR OWN items. This is secure and avoids illegal gets in list rules.
-      allow list: if isOwner(userId);
-
       // Staff can read any item (for collectionGroup queries), and owners can read their own.
-      allow get: if isOwner(userId) || isStaff();
+      allow read: if isOwner(userId) || isStaff();
 
       // Update permissions are role-based.
       allow update: if 
