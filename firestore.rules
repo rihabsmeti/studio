@@ -1,11 +1,10 @@
 /**
  * @file Firebase Security Rules for ExitPass Application
  * @core_philosophy This ruleset enforces a strict user-ownership model for user profiles and their associated clearance items.
- * It also incorporates role-based access control for administrative functions.
+ * It also incorporates role-based access control for administrative functions using collection group queries.
  * @data_structure All user data is nested under /users/{userId}, with clearance items further nested under each user's profile.
  * @key_security_decisions User listing is disabled to protect user privacy. Staff roles require a specific email domain.
- * @denormalization UserProfile documents are required to have an 'id' field that matches the userId in the path, ensuring
- *  path-based authorization is reliable. ClearanceItems denormalize the userProfileId, mirroring the userId parameter.
+ * A specific collection group rule is implemented for `clearanceItems` to allow staff to query across all users.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -34,9 +33,15 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-        return getRole() == 'Admin';
+      return getRole() == 'Admin';
     }
     
+    // Rule for Collection Group queries on 'clearanceItems'.
+    // This is essential for Admin, Finance, and Security dashboards.
+    match /{path=**}/clearanceItems/{clearanceItemId} {
+      allow read: if isStaff();
+    }
+
     match /users/{userId} {
       allow get: if isOwner(userId) || isStaff();
       allow list: if false; // User listing is disabled for privacy.
@@ -49,31 +54,27 @@ service cloud.firestore {
                         request.auth.token.email.matches('.*@africanleadershipacademy.org')));
 
       // Allow update if the user is the owner and the ID and role don't change.
-      // Role changes are disallowed here for security.
       allow update: if isOwner(userId) && request.resource.data.id == resource.data.id &&
                        request.resource.data.role == resource.data.role;
+                       
       allow delete: if isOwner(userId);
-    }
-    
-    // This rule allows staff members to query across all clearance items.
-    match /{path=**}/clearanceItems/{clearanceItemId} {
-      allow read: if isStaff();
-    }
 
-    match /users/{userId}/clearanceItems/{clearanceItemId} {
-      // Students can create and delete their own items, and read their own items.
-      allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
-      allow delete: if isOwner(userId) && resource.data.status == 'Pending';
-      allow get: if isOwner(userId) || isStaff();
+      // Rules for the 'clearanceItems' subcollection within a specific user's path.
+      match /clearanceItems/{clearanceItemId} {
+        // Students can create, read, and delete their own items.
+        allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
+        allow delete: if isOwner(userId) && resource.data.status == 'Pending';
+        allow get: if isOwner(userId); // `read` for the collection group query above handles staff access.
 
-      // Update permissions are role-based.
-      allow update: if 
-        // Owners can update their own items if the status is 'Pending'.
-        (isOwner(userId) && resource.data.status == 'Pending') ||
-        // Admins can update status, rejectionReason, and price.
-        (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'rejectionReason', 'price', 'paymentStatus'])) ||
-        // Finance can only update the paymentStatus.
-        (isFinance() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentStatus']));
+        // Update permissions are role-based.
+        allow update: if 
+          // Owners can update their own items if the status is 'Pending'.
+          (isOwner(userId) && resource.data.status == 'Pending') ||
+          // Admins can update status, rejectionReason, price, and paymentStatus.
+          (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'rejectionReason', 'price', 'paymentStatus'])) ||
+          // Finance can only update the paymentStatus.
+          (isFinance() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentStatus']));
+      }
     }
   }
 }
