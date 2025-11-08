@@ -55,14 +55,16 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
     
+    // This rule allows staff members to query across all clearance items.
+    match /{path=**}/clearanceItems/{clearanceItemId} {
+      allow read: if isStaff();
+    }
+
     match /users/{userId}/clearanceItems/{clearanceItemId} {
       // Students can create and delete their own items, and read their own items.
       allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
       allow delete: if isOwner(userId) && resource.data.status == 'Pending';
       allow get: if isOwner(userId) || isStaff();
-      // Staff can list all items (for collectionGroup queries). This is the key change.
-      allow list: if isStaff();
-
 
       // Update permissions are role-based.
       allow update: if 
