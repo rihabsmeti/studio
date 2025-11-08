@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 
 // Define the types for our static data
 type ClearanceItem = {
@@ -51,7 +50,7 @@ const AdminClearanceView = () => {
     // Simulate the action with a toast
     toast({
         title: "Item Approved (Simulated)",
-        description: `"${item.name}" has been approved.`,
+        description: `"${item.name}" has been approved for ${item.studentName}.`,
     });
     // Optional: Update local state to reflect the change visually
     setItems(prevItems => prevItems.filter(i => i.id !== item.id));
@@ -73,7 +72,7 @@ const AdminClearanceView = () => {
     // Simulate the action with a toast
     toast({
         title: "Item Rejected (Simulated)",
-        description: `"${item.name}" has been rejected.`,
+        description: `"${item.name}" has been rejected for ${item.studentName}.`,
         variant: "destructive"
     });
     
@@ -88,7 +87,7 @@ const AdminClearanceView = () => {
         <Table>
             <TableHeader>
             <TableRow>
-                <TableHead>Student</TableHead>
+                <TableHead>User</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Item Name</TableHead>
                 <TableHead>Notes</TableHead>
@@ -116,7 +115,7 @@ const AdminClearanceView = () => {
             <DialogHeader>
                 <DialogTitle>Reject Item: {rejectDialog.item?.name}</DialogTitle>
                 <DialogDescription>
-                    Provide a reason for the rejection and specify the cost to be paid by the student.
+                    Provide a reason for the rejection and specify the cost to be paid by the user.
                 </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
